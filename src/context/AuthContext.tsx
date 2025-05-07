@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "../types";
-import { getCurrentUser, setCurrentUser } from "../utils/storage";
+import { getCurrentUser, getUsers, setCurrentUser } from "../utils/storage";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (user: User) => Promise<void>;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   isAdmin: boolean;
 }
@@ -17,6 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -26,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
+      setIsAuthenticated(!!currentUser);
     } catch (error) {
       console.error("Error loading user:", error);
     } finally {
@@ -33,13 +36,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const login = async (userData: User) => {
+  const login = async (email: string, password: string) => {
     try {
-      await setCurrentUser(userData);
-      setUser(userData);
+      setLoading(true);
+      console.log("Login attempt with:", email);
+
+      // Check if email or password is undefined or empty
+      if (!email || !password) {
+        console.error("Email or password is undefined or empty");
+        return false;
+      }
+
+      const users = await getUsers();
+      console.log("Found users:", users.length);
+
+      const user = users.find(
+        (u) =>
+          u.email.toLowerCase() === email.toLowerCase() &&
+          u.password === password
+      );
+
+      console.log("Login success?", !!user);
+
+      if (user) {
+        await setCurrentUser(user);
+        setUser(user);
+        setIsAuthenticated(true);
+        console.log("Authentication state updated, user set");
+        return true;
+      }
+      return false;
     } catch (error) {
-      console.error("Error logging in:", error);
-      throw error;
+      console.error("Login error:", error);
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,19 +78,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await setCurrentUser(null);
       setUser(null);
+      setIsAuthenticated(false);
     } catch (error) {
       console.error("Error logging out:", error);
       throw error;
     }
   };
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.isAdmin || false;
 
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
+        isAuthenticated,
         login,
         logout,
         isAdmin,

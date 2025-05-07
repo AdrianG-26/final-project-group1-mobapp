@@ -19,6 +19,9 @@ import OrderHistoryScreen from "../screens/main/OrderHistoryScreen";
 import ProductDetailsScreen from "../screens/main/ProductDetailsScreen";
 import ProfileScreen from "../screens/main/ProfileScreen";
 
+// Admin Screens
+import UserManagementScreen from "../screens/admin/UserManagementScreen";
+
 // Types
 import {
   AuthStackParamList,
@@ -124,6 +127,11 @@ const Navigation = () => {
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Auth" component={AuthNavigator} />
         <Stack.Screen name="Main" component={MainNavigator} />
+        <Stack.Screen
+          name="UserManagement"
+          component={UserManagementScreen}
+          options={{ title: "User Management" }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

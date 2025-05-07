@@ -59,6 +59,74 @@ export const setCurrentUser = async (user: User | null): Promise<void> => {
   }
 };
 
+// Add this function to your storage.ts file
+export const makeUserAdmin = async (email: string): Promise<boolean> => {
+  try {
+    const users = await getUsers();
+    const userIndex = users.findIndex(
+      (u) => u.email.toLowerCase() === email.toLowerCase()
+    );
+
+    if (userIndex !== -1) {
+      // Update the user to be an admin
+      users[userIndex].isAdmin = true;
+
+      // Save the updated users list
+      await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+      // If this is the current user, update the current user as well
+      const currentUser = await getCurrentUser();
+      if (
+        currentUser &&
+        currentUser.email.toLowerCase() === email.toLowerCase()
+      ) {
+        currentUser.isAdmin = true;
+        await setCurrentUser(currentUser);
+      }
+
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Error making user admin:", error);
+    return false;
+  }
+};
+
+// Add this function to delete a user
+export const deleteUser = async (userId: string): Promise<boolean> => {
+  try {
+    const users = await getUsers();
+    const initialLength = users.length;
+
+    // Filter out the user with the matching ID
+    const updatedUsers = users.filter((user) => user.id !== userId);
+
+    // If no user was removed, return false
+    if (updatedUsers.length === initialLength) {
+      return false;
+    }
+
+    // Save the updated users list
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.USERS,
+      JSON.stringify(updatedUsers)
+    );
+
+    // Check if the deleted user is the current user
+    const currentUser = await getCurrentUser();
+    if (currentUser && currentUser.id === userId) {
+      // Log out the current user if they were deleted
+      await setCurrentUser(null);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return false;
+  }
+};
+
 // Product operations
 export const saveProduct = async (product: Product): Promise<void> => {
   try {

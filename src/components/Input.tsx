@@ -10,8 +10,9 @@ import {
 } from "react-native";
 
 interface InputProps extends TextInputProps {
-  label?: string;
+  label: string;
   error?: string;
+  rightIcon?: React.ReactNode;
   containerStyle?: ViewStyle;
   labelStyle?: TextStyle;
   inputStyle?: TextStyle;
@@ -21,6 +22,7 @@ interface InputProps extends TextInputProps {
 const Input: React.FC<InputProps> = ({
   label,
   error,
+  rightIcon,
   containerStyle,
   labelStyle,
   inputStyle,
@@ -31,19 +33,23 @@ const Input: React.FC<InputProps> = ({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={[styles.label, labelStyle]}>{label}</Text>}
-      <TextInput
+      <Text style={[styles.label, labelStyle]}>{label}</Text>
+      <View
         style={[
-          styles.input,
+          styles.inputContainer,
           isFocused && styles.focusedInput,
           error && styles.errorInput,
-          inputStyle,
         ]}
-        placeholderTextColor="#999"
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        {...props}
-      />
+      >
+        <TextInput
+          style={[styles.input, inputStyle]}
+          placeholderTextColor="#999"
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          {...props}
+        />
+        {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
+      </View>
       {error && <Text style={[styles.error, errorStyle]}>{error}</Text>}
     </View>
   );
@@ -59,15 +65,20 @@ const styles = StyleSheet.create({
     color: "#000",
     marginBottom: 8,
   },
-  input: {
-    height: 48,
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
+    backgroundColor: "#fff",
+  },
+  input: {
+    flex: 1,
+    height: 48,
     paddingHorizontal: 16,
     fontSize: 16,
     color: "#000",
-    backgroundColor: "#fff",
   },
   focusedInput: {
     borderColor: "#000",
@@ -79,6 +90,10 @@ const styles = StyleSheet.create({
     color: "#ff3b30",
     fontSize: 14,
     marginTop: 4,
+  },
+  rightIcon: {
+    paddingHorizontal: 10,
+    justifyContent: "center",
   },
 });
 

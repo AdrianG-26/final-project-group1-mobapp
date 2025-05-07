@@ -1,112 +1,196 @@
 import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { v4 as uuidv4 } from "uuid";
 import Button from "../../components/Button";
 import Input from "../../components/Input";
 import { useAuth } from "../../context/AuthContext";
-import { AuthStackParamList } from "../../types";
+import { User } from "../../types";
 import { getUsers, saveUser } from "../../utils/storage";
-import { validateEmail, validatePassword } from "../../utils/validation";
-
-type NavigationProp = NativeStackNavigationProp<AuthStackParamList>;
 
 const SignupScreen = () => {
-  const navigation = useNavigation<NavigationProp>();
+  const navigation = useNavigation();
   const { login } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [errors, setErrors] = useState<{
-    name?: string;
-    email?: string;
-    password?: string;
-    confirmPassword?: string;
-  }>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const validateForm = () => {
-    const newErrors: typeof errors = {};
+  // Error states for each field
+  const [nameError, setNameError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
+  const [existingUsers, setExistingUsers] = useState<User[]>([]);
 
-    if (!name.trim()) {
-      newErrors.name = "Name is required";
+  // Fetch existing users on component mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const users = await getUsers();
+      setExistingUsers(users);
+    };
+    fetchUsers();
+  }, []);
+
+  // Validate name when it changes
+  useEffect(() => {
+    if (name === "") {
+      setNameError("");
+    } else if (name.length < 3) {
+      setNameError("Name must be at least 3 characters long");
+    } else {
+      setNameError("");
+    }
+  }, [name]);
+
+  // Validate email when it changes
+  useEffect(() => {
+    if (email === "") {
+      setEmailError("");
+      return;
     }
 
-    if (!email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!validateEmail(email)) {
-      newErrors.email = "Invalid email format";
+    // RFC 5322 compliant email regex
+    const emailRegex =
+      /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+
+    if (!emailRegex.test(email)) {
+      setEmailError("Please enter a valid email address");
+    } else if (
+      existingUsers.some(
+        (user) => user.email.toLowerCase() === email.toLowerCase()
+      )
+    ) {
+      setEmailError("An account with this email already exists");
+    } else {
+      setEmailError("");
+    }
+  }, [email, existingUsers]);
+
+  // Validate password when it changes
+  useEffect(() => {
+    if (password === "") {
+      setPasswordError("");
+      return;
     }
 
-    if (!password) {
-      newErrors.password = "Password is required";
-    } else if (!validatePassword(password)) {
-      newErrors.password =
-        "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (!, @, $, %, ^, &, *, +, #)";
-    }
+    const hasMinLength = password.length >= 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/.test(
+      password
+    );
 
-    if (!confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
+    const allRequirementsMet =
+      hasMinLength &&
+      hasUpperCase &&
+      hasLowerCase &&
+      hasNumber &&
+      hasSpecialChar;
+
+    if (!allRequirementsMet) {
+      const errors = [];
+      if (!hasMinLength) errors.push("At least 8 characters");
+      if (!hasUpperCase) errors.push("At least 1 uppercase letter");
+      if (!hasLowerCase) errors.push("At least 1 lowercase letter");
+      if (!hasNumber) errors.push("At least 1 number");
+      if (!hasSpecialChar) errors.push("At least 1 special character");
+
+      setPasswordError(`Password requirements: ${errors.join(", ")}`);
+    } else {
+      setPasswordError("");
+    }
+  }, [password]);
+
+  // Validate confirm password when it or password changes
+  useEffect(() => {
+    if (confirmPassword === "") {
+      setConfirmPasswordError("");
     } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
+      setConfirmPasswordError("Passwords do not match");
+    } else {
+      setConfirmPasswordError("");
     }
+  }, [confirmPassword, password]);
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
   };
 
   const handleSignup = async () => {
-    if (!validateForm()) return;
+    // Check for any empty fields
+    if (!name || !email || !password || !confirmPassword) {
+      if (!name) setNameError("Name is required");
+      if (!email) setEmailError("Email is required");
+      if (!password) setPasswordError("Password is required");
+      if (!confirmPassword)
+        setConfirmPasswordError("Please confirm your password");
+      return;
+    }
 
-    setLoading(true);
+    // Check for any validation errors
+    if (nameError || emailError || passwordError || confirmPasswordError) {
+      return;
+    }
+
     try {
-      // Check for duplicate email
-      const users = await getUsers();
-      const existingUser = users.find((u) => u.email === email);
-      if (existingUser) {
-        setErrors({ email: "An account with this email already exists" });
-        setLoading(false);
-        return;
-      }
+      setLoading(true);
 
-      const newUser = {
+      // Create new user
+      const newUser: User = {
         id: uuidv4(),
         name,
         email,
         password,
-        isAdmin,
+        isAdmin: false,
+        createdAt: new Date().toISOString(),
       };
 
       await saveUser(newUser);
-      await login(newUser);
-      Alert.alert(
-        "Signup Successful",
-        "Your account has been created! You are now logged in.",
-        [
-          {
-            text: "OK",
-            onPress: () => {},
-          },
-        ]
-      );
+
+      // Auto-login after successful signup
+      const loginSuccess = await login(email, password);
+
+      if (loginSuccess) {
+        // Navigate to the main app
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Main" }],
+        });
+      } else {
+        // If login fails for some reason, still show success but require manual login
+        Alert.alert(
+          "Account Created",
+          "Your account was created successfully, but we couldn't log you in automatically. Please log in manually.",
+          [
+            {
+              text: "OK",
+              onPress: () => navigation.navigate("Login"),
+            },
+          ]
+        );
+      }
     } catch (error) {
-      Alert.alert(
-        "Signup Error",
-        "An error occurred during signup. Please try again."
-      );
+      console.error("Error creating account:", error);
+      Alert.alert("Error", "Failed to create account. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -123,9 +207,7 @@ const SignupScreen = () => {
       >
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>
-            Sign up to start shopping for your favorite shoes
-          </Text>
+          <Text style={styles.subtitle}>Sign up to get started</Text>
         </View>
 
         <View style={styles.form}>
@@ -133,58 +215,69 @@ const SignupScreen = () => {
             label="Full Name"
             value={name}
             onChangeText={setName}
-            error={errors.name}
-            autoCapitalize="words"
+            placeholder="Enter your full name"
+            error={nameError}
           />
 
           <Input
             label="Email"
             value={email}
             onChangeText={setEmail}
-            error={errors.email}
+            placeholder="Enter your email"
             keyboardType="email-address"
             autoCapitalize="none"
+            error={emailError}
           />
 
           <Input
             label="Password"
             value={password}
             onChangeText={setPassword}
-            error={errors.password}
-            secureTextEntry
+            placeholder="Enter your password"
+            secureTextEntry={!showPassword}
+            error={passwordError}
+            rightIcon={
+              <TouchableOpacity onPress={togglePasswordVisibility}>
+                <Icon
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={24}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            }
           />
 
           <Input
             label="Confirm Password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            error={errors.confirmPassword}
-            secureTextEntry
+            placeholder="Confirm your password"
+            secureTextEntry={!showConfirmPassword}
+            error={confirmPasswordError}
+            rightIcon={
+              <TouchableOpacity onPress={toggleConfirmPasswordVisibility}>
+                <Icon
+                  name={showConfirmPassword ? "eye-off" : "eye"}
+                  size={24}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            }
           />
 
-          <View style={styles.adminToggle}>
-            <Text style={styles.adminLabel}>Create as Admin</Text>
-            <Switch
-              value={isAdmin}
-              onValueChange={setIsAdmin}
-              trackColor={{ false: "#767577", true: "#81b0ff" }}
-              thumbColor={isAdmin ? "#000" : "#f4f3f4"}
-            />
-          </View>
-
           <Button
-            title="Sign Up"
+            title="Create Account"
             onPress={handleSignup}
             loading={loading}
             style={styles.button}
           />
-        </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-            <Text style={styles.footerLink}>Sign In</Text>
-          </TouchableOpacity>
+          <View style={styles.loginContainer}>
+            <Text style={styles.loginText}>Already have an account?</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+              <Text style={styles.loginLink}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -202,12 +295,11 @@ const styles = StyleSheet.create({
   },
   header: {
     marginTop: 40,
-    marginBottom: 40,
+    marginBottom: 30,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "bold",
-    color: "#000",
     marginBottom: 8,
   },
   subtitle: {
@@ -215,32 +307,23 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   form: {
-    gap: 16,
-  },
-  adminToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  adminLabel: {
-    fontSize: 16,
-    color: "#000",
+    marginBottom: 20,
   },
   button: {
-    marginTop: 8,
+    marginTop: 20,
   },
-  footer: {
+  loginContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 24,
+    marginTop: 20,
   },
-  footerText: {
+  loginText: {
     color: "#666",
   },
-  footerLink: {
+  loginLink: {
     color: "#000",
-    fontWeight: "600",
+    fontWeight: "bold",
+    marginLeft: 5,
   },
 });
 

@@ -1,6 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -9,68 +10,46 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { v4 as uuidv4 } from "uuid";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import Button from "../../components/Button";
 import Input from "../../components/Input";
 import { useAuth } from "../../context/AuthContext";
-import { getUsers, saveUser } from "../../utils/storage";
-import { validateEmail, validatePassword } from "../../utils/validation";
 
 const LoginScreen = () => {
   const navigation = useNavigation();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {}
-  );
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
-
-    if (!email) {
-      newErrors.email = "Email is required";
-    } else if (!validateEmail(email)) {
-      newErrors.email = "Please enter a valid email";
-    }
-
-    if (!password) {
-      newErrors.password = "Password is required";
-    } else if (!validatePassword(password)) {
-      newErrors.password =
-        "Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   const handleLogin = async () => {
-    if (!validateForm()) return;
+    console.log(
+      "Login attempt with email:",
+      email,
+      "and password length:",
+      password?.length
+    );
 
-    setLoading(true);
-    try {
-      const users = await getUsers();
-      const user = users.find(
-        (u) => u.email === email && u.password === password
-      );
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter both email and password");
+      return;
+    }
 
-      if (user) {
-        await login(user);
-      } else {
-        setErrors({
-          email: "Invalid email or password",
-          password: "Invalid email or password",
-        });
-      }
-    } catch (error) {
-      console.error("Login error:", error);
-      setErrors({
-        email: "An error occurred. Please try again.",
+    const success = await login(email, password);
+
+    if (success) {
+      // Navigate to the main screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Main" }], // Or whatever your main stack name is
       });
-    } finally {
-      setLoading(false);
+    } else {
+      Alert.alert("Login Failed", "Invalid email or password");
     }
   };
 
@@ -96,7 +75,6 @@ const LoginScreen = () => {
             placeholder="Enter your email"
             keyboardType="email-address"
             autoCapitalize="none"
-            error={errors.email}
           />
 
           <Input
@@ -104,8 +82,16 @@ const LoginScreen = () => {
             value={password}
             onChangeText={setPassword}
             placeholder="Enter your password"
-            secureTextEntry
-            error={errors.password}
+            secureTextEntry={!showPassword}
+            rightIcon={
+              <TouchableOpacity onPress={togglePasswordVisibility}>
+                <Icon
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={24}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            }
           />
 
           <TouchableOpacity

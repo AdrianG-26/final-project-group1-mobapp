@@ -9,9 +9,43 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useAuth } from "../../context/AuthContext";
+import { getUsers, makeUserAdmin } from "../../utils/storage";
 
-const ProfileScreen = () => {
+const ProfileScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
+
+  const viewAllUsers = async () => {
+    try {
+      const allUsers = await getUsers();
+      console.log("All Users:", JSON.stringify(allUsers, null, 2));
+      Alert.alert(
+        "Users Retrieved",
+        `Found ${allUsers.length} users. Check the console log.`
+      );
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      Alert.alert("Error", "Failed to retrieve users");
+    }
+  };
+
+  const makeAdmin = async () => {
+    try {
+      const email = "adrian_louise_galvez@dlsl.edu.ph";
+      const success = await makeUserAdmin(email);
+
+      if (success) {
+        Alert.alert(
+          "Success",
+          `User ${email} is now an admin. Please log out and log back in to see the changes.`
+        );
+      } else {
+        Alert.alert("Error", `User ${email} not found.`);
+      }
+    } catch (error) {
+      console.error("Error making user admin:", error);
+      Alert.alert("Error", "Failed to make user an admin");
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -24,7 +58,14 @@ const ProfileScreen = () => {
         },
         {
           text: "Logout",
-          onPress: () => logout(),
+          onPress: async () => {
+            await logout();
+            // Reset navigation stack to login screen
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Auth" }], // This should be the name of your Auth stack
+            });
+          },
           style: "destructive",
         },
       ],
@@ -69,6 +110,30 @@ const ProfileScreen = () => {
       },
     },
   ];
+
+  // Add admin-only menu items
+  if (user?.isAdmin) {
+    menuItems.push({
+      icon: "account-group",
+      title: "View All Users",
+      onPress: viewAllUsers,
+    });
+
+    menuItems.push({
+      icon: "account-cog",
+      title: "User Management",
+      onPress: () => {
+        navigation.navigate("UserManagement");
+      },
+    });
+  }
+
+  // Temporary menu item for making a user admin
+  menuItems.push({
+    icon: "shield-account",
+    title: "Make User Admin",
+    onPress: makeAdmin,
+  });
 
   return (
     <ScrollView style={styles.container}>
