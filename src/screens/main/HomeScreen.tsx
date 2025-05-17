@@ -91,7 +91,7 @@ const HomeScreen = () => {
               <Icon name="magnify" size={20} color="#666" />
               <TextInput
                 style={styles.input}
-                placeholder="Search products..."
+                placeholder="Search products...."
                 value={searchInput}
                 onChangeText={searchProducts}
                 returnKeyType="done"
