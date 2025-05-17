@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Order, Product, User } from "../types";
+import { sampleProducts } from "./sampleData";
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -9,6 +10,21 @@ const STORAGE_KEYS = {
   CURRENT_USER: "currentUser",
   CART: "cart",
   HAS_SEEN_ONBOARDING: "hasSeenOnboarding",
+};
+
+// Initialize sample data
+export const initializeSampleData = async (): Promise<void> => {
+  try {
+    const existingProducts = await getProducts();
+    if (existingProducts.length === 0) {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.PRODUCTS,
+        JSON.stringify(sampleProducts)
+      );
+    }
+  } catch (error) {
+    console.error("Error initializing sample data:", error);
+  }
 };
 
 // User operations

@@ -1,5 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import React, { useState, useEffect } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -14,14 +15,30 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import Button from "../../components/Button";
 import Input from "../../components/Input";
 import { useAuth } from "../../context/AuthContext";
+import { AuthStackParamList, RootStackParamList } from "../../types";
+import { getUsers } from '../../utils/storage';
+
+type LoginScreenNavigationProp = NativeStackNavigationProp<
+  AuthStackParamList & RootStackParamList,
+  'Login'
+>;
 
 const LoginScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<LoginScreenNavigationProp>();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    // Check all users on component mount
+    const checkUsers = async () => {
+      const users = await getUsers();
+      console.log('All registered users:', JSON.stringify(users, null, 2));
+    };
+    checkUsers();
+  }, []);
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);

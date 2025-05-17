@@ -3,6 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { View } from "react-native";
 
 // Auth Screens
 import OnboardingScreen from "../screens/OnboardingScreen";
@@ -33,6 +34,9 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const MainStack = createNativeStackNavigator<MainStackParamList>();
 const Tab = createBottomTabNavigator();
+const CartStack = createNativeStackNavigator();
+const HomeStack = createNativeStackNavigator();
+const ProfileStack = createNativeStackNavigator();
 
 const AuthNavigator = () => {
   return (
@@ -51,6 +55,56 @@ const AuthNavigator = () => {
   );
 };
 
+const CartStackNavigator = () => {
+  return (
+    <CartStack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <CartStack.Screen name="CartScreen" component={CartScreen} />
+    </CartStack.Navigator>
+  );
+};
+
+const CartScreenWithTabs = () => {
+  return (
+    <View style={{ flex: 1 }}>
+      <CartScreen />
+      <TabNavigator />
+    </View>
+  );
+};
+
+const HomeStackScreen = () => {
+  return (
+    <HomeStack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <HomeStack.Screen name="HomeScreen" component={HomeScreen} />
+      <HomeStack.Screen name="ProductDetails" component={ProductDetailsScreen} />
+      <HomeStack.Screen name="Cart" component={CartScreen} />
+      <HomeStack.Screen name="Checkout" component={CheckoutScreen} />
+      <HomeStack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+      <HomeStack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+    </HomeStack.Navigator>
+  );
+};
+
+const ProfileStackScreen = () => {
+  return (
+    <ProfileStack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} />
+    </ProfileStack.Navigator>
+  );
+};
+
 const TabNavigator = () => {
   return (
     <Tab.Navigator
@@ -61,8 +115,8 @@ const TabNavigator = () => {
       }}
     >
       <Tab.Screen
-        name="Home"
-        component={HomeScreen}
+        name="HomeTab"
+        component={HomeStackScreen}
         options={{
           tabBarLabel: "Home",
           tabBarIcon: ({ color, size }) => (
@@ -71,18 +125,8 @@ const TabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Cart"
-        component={CartScreen}
-        options={{
-          tabBarLabel: "Cart",
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="cart" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
+        name="ProfileTab"
+        component={ProfileStackScreen}
         options={{
           tabBarLabel: "Profile",
           tabBarIcon: ({ color, size }) => (
@@ -102,16 +146,6 @@ const MainNavigator = () => {
       }}
     >
       <MainStack.Screen name="MainTabs" component={TabNavigator} />
-      <MainStack.Screen
-        name="ProductDetails"
-        component={ProductDetailsScreen}
-      />
-      <MainStack.Screen name="Checkout" component={CheckoutScreen} />
-      <MainStack.Screen name="OrderHistory" component={OrderHistoryScreen} />
-      <MainStack.Screen
-        name="AdminDashboard"
-        component={AdminDashboardScreen}
-      />
     </MainStack.Navigator>
   );
 };

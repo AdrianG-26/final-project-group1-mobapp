@@ -1,4 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -8,15 +9,19 @@ import {
   Text,
   TouchableOpacity,
   View,
+  StatusBar,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import Button from "../../components/Button";
 import { useCart } from "../../context/CartContext";
-import { Product } from "../../types";
+import { MainStackParamList, Product } from "../../types";
 import { getProducts } from "../../utils/storage";
 
+type CartScreenNavigationProp = NativeStackNavigationProp<MainStackParamList>;
+
 const CartScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<CartScreenNavigationProp>();
   const { items, removeFromCart, updateQuantity, getTotalPrice } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,14 +101,18 @@ const CartScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#000" />
-      </View>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#000" />
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
       {items.length > 0 ? (
         <>
           <FlatList
@@ -131,13 +140,13 @@ const CartScreen = () => {
           <Text style={styles.emptyText}>Your cart is empty</Text>
           <Button
             title="Start Shopping"
-            onPress={() => navigation.navigate("Home")}
+            onPress={() => navigation.navigate("HomeScreen")}
             variant="outline"
             style={styles.emptyButton}
           />
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 

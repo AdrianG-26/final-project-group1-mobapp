@@ -73,7 +73,7 @@ const MainNavigator = () => {
         headerShown: false,
       }}
     >
-      <Stack.Screen name="Home" component={TabNavigator} />
+      <Stack.Screen name="MainTabs" component={TabNavigator} />
       <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />

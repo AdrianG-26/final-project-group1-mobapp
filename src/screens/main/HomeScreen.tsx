@@ -1,169 +1,193 @@
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import ProductCard from "../../components/ProductCard";
 import { useAuth } from "../../context/AuthContext";
-import { Product } from "../../types";
-import { getProducts } from "../../utils/storage";
+import { MainStackParamList, Product } from "../../types";
+import { getProducts, initializeSampleData } from "../../utils/storage";
+
+type HomeScreenNavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const HomeScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<HomeScreenNavigationProp>();
   const { isAdmin } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
+  const [searchInput, setSearchInput] = useState("");
 
   useEffect(() => {
     loadProducts();
   }, []);
 
-  useEffect(() => {
-    filterProducts();
-  }, [searchQuery, products]);
-
   const loadProducts = async () => {
     try {
-      const loadedProducts = await getProducts();
-      setProducts(loadedProducts);
-      setFilteredProducts(loadedProducts);
+      await initializeSampleData();
+      const products = await getProducts();
+      setAllProducts(products);
+      setDisplayedProducts(products);
     } catch (error) {
-      console.error("Error loading products:", error);
-    } finally {
-      setLoading(false);
+      console.error("Failed to load products:", error);
     }
   };
 
-  const filterProducts = () => {
-    if (!searchQuery.trim()) {
-      setFilteredProducts(products);
+  const searchProducts = (query: string) => {
+    setSearchInput(query);
+
+    if (!query.trim()) {
+      setDisplayedProducts(allProducts);
       return;
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = products.filter(
-      (product) =>
-        product.name.toLowerCase().includes(query) ||
-        product.description.toLowerCase().includes(query)
+    const searchTerm = query.toLowerCase().trim();
+    const results = allProducts.filter(product =>
+      product.name.toLowerCase().includes(searchTerm) ||
+      product.description.toLowerCase().includes(searchTerm)
     );
-    setFilteredProducts(filtered);
+    setDisplayedProducts(results);
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.searchContainer}>
-        <Icon name="magnify" size={20} color="#666" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search shoes..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery ? (
-          <TouchableOpacity
-            onPress={() => setSearchQuery("")}
-            style={styles.clearButton}
-          >
-            <Icon name="close" size={20} color="#666" />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-      {isAdmin && (
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate("AdminDashboard")}
-        >
-          <Icon name="plus" size={24} color="#fff" />
+    <View style={styles.resultsHeader}>
+      <Text style={styles.resultCount}>
+        {displayedProducts.length} Product(s)
+      </Text>
+      <View style={styles.filterButtons}>
+        <TouchableOpacity style={styles.filterButton}>
+          <Icon name="sort" size={20} color="#000" />
+          <Text style={styles.filterButtonText}>Sort</Text>
         </TouchableOpacity>
-      )}
+        <TouchableOpacity style={styles.filterButton}>
+          <Icon name="filter-variant" size={20} color="#000" />
+          <Text style={styles.filterButtonText}>Filter</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#000" />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={filteredProducts}
-        renderItem={({ item }) => <ProductCard product={item} />}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No products found</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.header}>
+          <View style={styles.searchBarContainer}>
+            <View style={styles.searchBar}>
+              <Icon name="magnify" size={20} color="#666" />
+              <TextInput
+                style={styles.input}
+                placeholder="Search products..."
+                value={searchInput}
+                onChangeText={searchProducts}
+                returnKeyType="done"
+              />
+              {searchInput ? (
+                <TouchableOpacity onPress={() => searchProducts("")}>
+                  <Icon name="close" size={20} color="#666" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
-        }
-      />
-    </View>
+          <TouchableOpacity onPress={() => navigation.navigate("Cart")}>
+            <Icon name="cart-outline" size={24} color="#000" />
+          </TouchableOpacity>
+        </View>
+
+        {renderHeader()}
+
+        <FlatList
+          data={displayedProducts}
+          renderItem={({ item }) => <ProductCard product={item} />}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.productList}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No products found</Text>
+            </View>
+          }
+          keyboardShouldPersistTaps="handled"
+        />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#fff",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#fff",
+    paddingTop: 8,
+    gap: 12,
   },
-  searchContainer: {
+  searchBarContainer: {
     flex: 1,
+  },
+  searchBar: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f5f5f5",
     borderRadius: 8,
     paddingHorizontal: 12,
-    marginRight: 12,
+    paddingVertical: 8,
+    gap: 8,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
+  input: {
     flex: 1,
-    height: 40,
     fontSize: 16,
+    padding: 0,
     color: "#000",
   },
-  clearButton: {
-    padding: 4,
-  },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#000",
-    justifyContent: "center",
+  resultsHeader: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
   },
-  list: {
+  resultCount: {
+    fontSize: 14,
+    color: "#666",
+  },
+  filterButtons: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  filterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  filterButtonText: {
+    fontSize: 14,
+    color: "#000",
+  },
+  productList: {
     padding: 16,
   },
-  emptyContainer: {
+  emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",

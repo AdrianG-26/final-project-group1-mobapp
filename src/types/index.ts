@@ -12,6 +12,7 @@ export interface Product {
   description: string;
   price: number;
   image: string;
+  category: string;
   sizes: string[];
   stock: {
     [key: string]: number;
@@ -53,6 +54,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Auth: undefined;
   Main: undefined;
+  UserManagement: undefined;
 };
 
 export type AuthStackParamList = {
@@ -63,11 +65,15 @@ export type AuthStackParamList = {
 
 export type MainStackParamList = {
   MainTabs: { screen?: string; params?: object } | undefined;
-  Home: undefined;
+  HomeTab: { screen: string } | undefined;
+  ProfileTab: { screen: string } | undefined;
+  HomeScreen: undefined;
   ProductDetails: { productId: string };
   Cart: undefined;
   Checkout: undefined;
   OrderHistory: undefined;
   Profile: undefined;
   AdminDashboard: undefined;
+  UserManagement: undefined;
+  Auth: undefined;
 };

@@ -1,3 +1,5 @@
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
 import {
   Alert,
@@ -6,12 +8,18 @@ import {
   Text,
   TouchableOpacity,
   View,
+  StatusBar,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useAuth } from "../../context/AuthContext";
+import { MainStackParamList } from "../../types";
 import { getUsers, makeUserAdmin } from "../../utils/storage";
 
-const ProfileScreen = ({ navigation }) => {
+type ProfileScreenNavigationProp = NativeStackNavigationProp<MainStackParamList>;
+
+const ProfileScreen = () => {
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
   const { user, logout } = useAuth();
 
   const viewAllUsers = async () => {
@@ -136,36 +144,39 @@ const ProfileScreen = ({ navigation }) => {
   });
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.avatarContainer}>
-          <Icon name="account-circle" size={80} color="#000" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
+      <ScrollView>
+        <View style={styles.header}>
+          <View style={styles.avatarContainer}>
+            <Icon name="account-circle" size={80} color="#000" />
+          </View>
+          <Text style={styles.name}>{user?.name}</Text>
+          <Text style={styles.email}>{user?.email}</Text>
         </View>
-        <Text style={styles.name}>{user?.name}</Text>
-        <Text style={styles.email}>{user?.email}</Text>
-      </View>
 
-      <View style={styles.menuContainer}>
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.menuItem}
-            onPress={item.onPress}
-          >
-            <View style={styles.menuItemLeft}>
-              <Icon name={item.icon} size={24} color="#000" />
-              <Text style={styles.menuItemText}>{item.title}</Text>
-            </View>
-            <Icon name="chevron-right" size={24} color="#666" />
-          </TouchableOpacity>
-        ))}
-      </View>
+        <View style={styles.menuContainer}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.menuItem}
+              onPress={item.onPress}
+            >
+              <View style={styles.menuItemLeft}>
+                <Icon name={item.icon} size={24} color="#000" />
+                <Text style={styles.menuItemText}>{item.title}</Text>
+              </View>
+              <Icon name="chevron-right" size={24} color="#666" />
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Icon name="logout" size={24} color="#FF3B30" />
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Icon name="logout" size={24} color="#FF3B30" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
