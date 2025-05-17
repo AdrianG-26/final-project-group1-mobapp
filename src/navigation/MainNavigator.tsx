@@ -12,7 +12,7 @@ import HomeScreen from "../screens/main/HomeScreen";
 import OrderHistoryScreen from "../screens/main/OrderHistoryScreen";
 import ProductDetailsScreen from "../screens/main/ProductDetailsScreen";
 import ProfileScreen from "../screens/main/ProfileScreen";
-
+import PersonalInfoScreen from "../screens/main/PersonalInfoScreen";
 const Stack = createNativeStackNavigator<MainStackParamList>();
 const Tab = createBottomTabNavigator();
 
@@ -77,6 +77,7 @@ const MainNavigator = () => {
       <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
     </Stack.Navigator>
   );
 };
