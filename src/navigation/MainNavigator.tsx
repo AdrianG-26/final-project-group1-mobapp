@@ -3,8 +3,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { MainStackParamList } from "../types";
-
-// Import screens (we'll create these next)
 import AdminDashboardScreen from "../screens/main/AdminDashboardScreen";
 import CartScreen from "../screens/main/CartScreen";
 import CheckoutScreen from "../screens/main/CheckoutScreen";
