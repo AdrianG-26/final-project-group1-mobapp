@@ -11,12 +11,17 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  image: string;
+  image: string | number;
   category: string;
   sizes: string[];
   stock: {
     [key: string]: number;
   };
+  rating: number;
+  ratingCount: number;
+  brand: string;
+  gender: "Men's" | "Women's" | "Unisex";
+  discount?: number;
 }
 
 export interface CartItem {

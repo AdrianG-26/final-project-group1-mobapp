@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import ProductCard from "../../components/ProductCard";
+import FilterModal from "../../components/FilterModal";
 import { useAuth } from "../../context/AuthContext";
 import { MainStackParamList, Product } from "../../types";
 import { getProducts, initializeSampleData } from "../../utils/storage";
@@ -28,6 +29,13 @@ const HomeScreen = () => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
   const [searchInput, setSearchInput] = useState("");
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<any>({
+    sortBy: '',
+    discounts: [],
+    gender: [],
+    types: []
+  });
 
   useEffect(() => {
     loadProducts();
@@ -37,6 +45,7 @@ const HomeScreen = () => {
     try {
       await initializeSampleData();
       const products = await getProducts();
+      console.log('Number of products loaded:', products.length);
       setAllProducts(products);
       setDisplayedProducts(products);
     } catch (error) {
@@ -46,18 +55,69 @@ const HomeScreen = () => {
 
   const searchProducts = (query: string) => {
     setSearchInput(query);
+    applyFilters(query, activeFilters);
+  };
 
-    if (!query.trim()) {
-      setDisplayedProducts(allProducts);
-      return;
+  const applyFilters = (query: string, filters: any) => {
+    let filtered = [...allProducts];
+
+    // Apply search query
+    if (query.trim()) {
+      const searchTerm = query.toLowerCase().trim();
+      filtered = filtered.filter(product =>
+        product.name.toLowerCase().includes(searchTerm) ||
+        product.description.toLowerCase().includes(searchTerm)
+      );
     }
 
-    const searchTerm = query.toLowerCase().trim();
-    const results = allProducts.filter(product =>
-      product.name.toLowerCase().includes(searchTerm) ||
-      product.description.toLowerCase().includes(searchTerm)
-    );
-    setDisplayedProducts(results);
+    // Apply gender filter
+    if (filters.gender.length > 0) {
+      filtered = filtered.filter(product => filters.gender.includes(product.gender));
+    }
+
+    // Apply discount filter
+    if (filters.discounts.length > 0) {
+      filtered = filtered.filter(product => {
+        if (!product.discount) return false;
+        if (filters.discounts.includes('20-30')) {
+          if (product.discount >= 20 && product.discount <= 30) return true;
+        }
+        if (filters.discounts.includes('30-40')) {
+          if (product.discount >= 30 && product.discount <= 40) return true;
+        }
+        return false;
+      });
+    }
+
+    // Apply type filter
+    if (filters.types.length > 0) {
+      filtered = filtered.filter(product => 
+        filters.types.includes(product.category.toLowerCase())
+      );
+    }
+
+    // Apply sorting
+    if (filters.sortBy) {
+      filtered.sort((a, b) => {
+        const priceA = a.discount 
+          ? Math.round(a.price * (1 - a.discount / 100))
+          : a.price;
+        const priceB = b.discount
+          ? Math.round(b.price * (1 - b.discount / 100))
+          : b.price;
+        
+        return filters.sortBy === 'low-high'
+          ? priceA - priceB
+          : priceB - priceA;
+      });
+    }
+
+    setDisplayedProducts(filtered);
+  };
+
+  const handleFilterApply = (filters: any) => {
+    setActiveFilters(filters);
+    applyFilters(searchInput, filters);
   };
 
   const renderHeader = () => (
@@ -66,11 +126,10 @@ const HomeScreen = () => {
         {displayedProducts.length} Product(s)
       </Text>
       <View style={styles.filterButtons}>
-        <TouchableOpacity style={styles.filterButton}>
-          <Icon name="sort" size={20} color="#000" />
-          <Text style={styles.filterButtonText}>Sort</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
+        <TouchableOpacity 
+          style={styles.filterButton}
+          onPress={() => setIsFilterModalVisible(true)}
+        >
           <Icon name="filter-variant" size={20} color="#000" />
           <Text style={styles.filterButtonText}>Filter</Text>
         </TouchableOpacity>
@@ -116,12 +175,20 @@ const HomeScreen = () => {
           keyExtractor={(item) => item.id}
           numColumns={2}
           contentContainerStyle={styles.productList}
+          columnWrapperStyle={styles.columnWrapper}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>No products found</Text>
             </View>
           }
           keyboardShouldPersistTaps="handled"
+        />
+
+        <FilterModal
+          visible={isFilterModalVisible}
+          onClose={() => setIsFilterModalVisible(false)}
+          onApply={handleFilterApply}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -185,7 +252,11 @@ const styles = StyleSheet.create({
     color: "#000",
   },
   productList: {
-    padding: 16,
+    padding: 8,
+  },
+  columnWrapper: {
+    justifyContent: 'flex-start',
+    gap: 16,
   },
   emptyState: {
     flex: 1,

@@ -74,12 +74,15 @@ const ProductDetailsScreen = () => {
         </View>
 
         {/* Product Image */}
-        <Image source={{ uri: product.image }} style={styles.image} />
+        <Image 
+          source={typeof product.image === 'string' ? { uri: product.image } : product.image} 
+          style={styles.image} 
+        />
 
         {/* Product Info */}
         <View style={styles.infoContainer}>
           <Text style={styles.name}>{product.name}</Text>
-          <Text style={styles.brand}>QUECHUA</Text>
+          <Text style={styles.brand}>{product.brand}</Text>
           <View style={styles.priceContainer}>
             <Text style={styles.price}>₱{product.price.toLocaleString()}</Text>
             <Text style={styles.originalPrice}>
@@ -90,8 +93,8 @@ const ProductDetailsScreen = () => {
           {/* Rating */}
           <View style={styles.ratingContainer}>
             <Icon name="star" size={20} color="#000" />
-            <Text style={styles.rating}>4.4</Text>
-            <Text style={styles.ratingCount}>(4,089 reviews)</Text>
+            <Text style={styles.rating}>{product.rating}</Text>
+            <Text style={styles.ratingCount}>({product.ratingCount} reviews)</Text>
           </View>
 
           {/* Size Selection */}
@@ -119,6 +122,9 @@ const ProductDetailsScreen = () => {
               ))}
             </View>
           </ScrollView>
+          <Text style={styles.remainingStock}>
+            {selectedSize ? `${product.stock[selectedSize]} stocks remaining` : 'Select a size to see availability'}
+          </Text>
 
           {/* Description */}
           <Text style={styles.sectionTitle}>Description</Text>
@@ -128,7 +134,13 @@ const ProductDetailsScreen = () => {
 
       {/* Add to Cart Button */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.addToCartButton}>
+        <TouchableOpacity 
+          style={[
+            styles.addToCartButton,
+            (!selectedSize || product.stock[selectedSize] === 0) && styles.disabledButton
+          ]}
+          disabled={!selectedSize || product.stock[selectedSize] === 0}
+        >
           <Icon name="cart-plus" size={24} color="#fff" />
           <Text style={styles.addToCartText}>Add to Cart</Text>
         </TouchableOpacity>
@@ -239,6 +251,14 @@ const styles = StyleSheet.create({
   selectedSizeText: {
     color: "#fff",
   },
+  remainingStock: {
+    fontSize: 14,
+    color: "red",
+    textAlign: "left",
+    marginTop: 8,
+    marginBottom: 24,
+    fontWeight: "500",
+  },
   description: {
     fontSize: 16,
     color: "#666",
@@ -257,6 +277,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     gap: 8,
+  },
+  disabledButton: {
+    backgroundColor: "#999",
   },
   addToCartText: {
     fontSize: 16,

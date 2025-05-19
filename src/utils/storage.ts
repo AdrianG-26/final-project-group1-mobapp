@@ -15,13 +15,11 @@ const STORAGE_KEYS = {
 // Initialize sample data
 export const initializeSampleData = async (): Promise<void> => {
   try {
-    const existingProducts = await getProducts();
-    if (existingProducts.length === 0) {
-      await AsyncStorage.setItem(
-        STORAGE_KEYS.PRODUCTS,
-        JSON.stringify(sampleProducts)
-      );
-    }
+    // Always initialize with the latest sample data during development
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.PRODUCTS,
+      JSON.stringify(sampleProducts)
+    );
   } catch (error) {
     console.error("Error initializing sample data:", error);
   }
