@@ -30,18 +30,6 @@ export interface Order {
   deliveryMethod: string;
 }
 
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  category: string;
-  sizes: string[];
-  stock: Record<string, number>; // Size to stock count mapping
-  featured?: boolean;
-}
-
 export type MainStackParamList = {
   Login: undefined;
   Register: undefined;

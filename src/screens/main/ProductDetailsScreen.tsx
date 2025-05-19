@@ -17,7 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { MainStackParamList } from "../../types";
 import { getProducts } from "../../utils/storage";
-import { Product } from "../../types";
+import { Product } from "../../types/index";
 import { useCart } from "../../context/CartContext";
 
 type ProductDetailsRouteProp = RouteProp<MainStackParamList, "ProductDetails">;
@@ -28,219 +28,141 @@ const { width } = Dimensions.get("window");
 const ProductDetailsScreen = () => {
   const navigation = useNavigation<ProductDetailsNavigationProp>();
   const route = useRoute<ProductDetailsRouteProp>();
-  const { productId } = route.params;
-  const [product, setProduct] = useState<Product | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string>("");
-  const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
-  
-  // Custom notification states
-  const [notificationVisible, setNotificationVisible] = useState(false);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    loadProduct();
-  }, [productId]);
-
-  const loadProduct = async () => {
-    try {
-      const products = await getProducts();
-      const foundProduct = products.find((p) => p.id === productId);
-      if (foundProduct) {
-        setProduct(foundProduct);
-        setSelectedSize(foundProduct.sizes[0]); // Select first size by default
+    const loadProduct = async () => {
+      try {
+        const products = await getProducts();
+        const foundProduct = products.find((p) => p.id === route.params.productId);
+        if (foundProduct) {
+          setProduct(foundProduct);
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }).start();
+        } else {
+          setError("Product not found");
+        }
+      } catch (err) {
+        setError("Failed to load product");
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error loading product:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const showNotification = () => {
-    setNotificationVisible(true);
-    
-    // Fade in animation
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true
-    }).start();
-    
-    // Auto hide after 3 seconds
-    setTimeout(() => {
-      hideNotification();
-    }, 3000);
-  };
-  
-  const hideNotification = () => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true
-    }).start(() => {
-      setNotificationVisible(false);
-    });
-  };
+    loadProduct();
+  }, [route.params.productId]);
 
   const handleAddToCart = async () => {
-    if (!product) return;
-    
-    if (!selectedSize) {
-      Alert.alert("Size Required", "Please select a size before adding to cart");
+    if (!product || !selectedSize) {
+      Alert.alert("Error", "Please select a size before adding to cart");
       return;
     }
 
     try {
       await addToCart(product, selectedSize);
-      showNotification();
+      Alert.alert("Success", "Item added to cart successfully");
     } catch (error) {
       console.error("Error adding to cart:", error);
       Alert.alert("Error", "Failed to add item to cart");
     }
   };
 
-  // Custom notification component
-  const renderNotification = () => {
-    if (!notificationVisible || !product) return null;
-    
+  if (loading) {
     return (
-      <Animated.View 
-        style={[
-          styles.notification,
-          {
-            opacity: fadeAnim,
-            transform: [{
-              translateY: fadeAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [20, 0]
-              })
-            }]
-          }
-        ]}
-      >
-        <TouchableOpacity 
-          style={styles.notificationContent} 
-          onPress={() => {
-            hideNotification();
-            navigation.navigate("Cart");
-          }}
-        >
-          <View style={styles.notificationIconContainer}>
-            <Icon name="check-circle" size={24} color="#fff" />
-          </View>
-          <View style={styles.notificationTextContainer}>
-            <Text style={styles.notificationTitle}>Added to Cart</Text>
-            <Text style={styles.notificationMessage}>{product.name} (Size: {selectedSize})</Text>
-          </View>
-          <Icon name="chevron-right" size={20} color="#666" />
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
-
-  if (loading || !product) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000" />
-        </View>
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
     );
   }
 
+  if (error || !product) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error || "Product not found"}</Text>
+      </View>
+    );
+  }
+
+  const hasDiscount = product.discount !== undefined;
+  const discountedPrice = hasDiscount
+    ? Math.round(product.price * (1 - (product.discount as number) / 100))
+    : product.price;
+
   return (
     <SafeAreaView style={styles.container}>
-      {renderNotification()}
       <ScrollView>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Icon name="arrow-left" size={24} color="#000" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.cartButton}
-            onPress={() => navigation.navigate("Cart")}
-          >
-            <Icon name="cart-outline" size={24} color="#000" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Product Image */}
-        <Image 
-          source={typeof product.image === 'string' ? { uri: product.image } : product.image} 
-          style={styles.image} 
-        />
-
-        {/* Product Info */}
-        <View style={styles.infoContainer}>
-          <Text style={styles.name}>{product.name}</Text>
-          <Text style={styles.brand}>{product.brand}</Text>
-          <View style={styles.priceContainer}>
-            <Text style={styles.price}>₱{product.price.toLocaleString()}</Text>
-            <Text style={styles.originalPrice}>
-              ₱{(product.price * 1.25).toLocaleString()}
-            </Text>
-          </View>
-
-          {/* Rating */}
-          <View style={styles.ratingContainer}>
-            <Icon name="star" size={20} color="#000" />
-            <Text style={styles.rating}>{product.rating}</Text>
-            <Text style={styles.ratingCount}>({product.ratingCount} reviews)</Text>
-          </View>
-
-          {/* Size Selection */}
-          <Text style={styles.sectionTitle}>Select Size</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+          <Image
+            source={typeof product.image === 'string' ? { uri: product.image } : product.image}
+            style={styles.image}
+          />
+          <View style={styles.detailsContainer}>
+            <Text style={styles.name}>{product.name}</Text>
+            <Text style={styles.brand}>{product.brand}</Text>
+            <Text style={styles.description}>{product.description}</Text>
+            <View style={styles.priceContainer}>
+              <Text style={styles.price}>₱{discountedPrice.toLocaleString()}</Text>
+              {hasDiscount && (
+                <Text style={styles.originalPrice}>
+                  ₱{product.price.toLocaleString()}
+                </Text>
+              )}
+            </View>
+            <View style={styles.ratingContainer}>
+              <Icon name="star" size={20} color="#FFD700" />
+              <Text style={styles.rating}>{product.rating}</Text>
+              <Text style={styles.ratingCount}>({product.ratingCount} reviews)</Text>
+            </View>
+            <Text style={styles.sizesTitle}>Available Sizes:</Text>
             <View style={styles.sizesContainer}>
               {product.sizes.map((size) => (
                 <TouchableOpacity
                   key={size}
                   style={[
                     styles.sizeButton,
-                    selectedSize === size && styles.selectedSizeButton,
+                    selectedSize === size && styles.selectedSize,
+                    product.stock[size] === 0 && styles.outOfStock,
                   ]}
                   onPress={() => setSelectedSize(size)}
+                  disabled={product.stock[size] === 0}
                 >
                   <Text
                     style={[
                       styles.sizeText,
                       selectedSize === size && styles.selectedSizeText,
+                      product.stock[size] === 0 && styles.outOfStockText,
                     ]}
                   >
                     {size}
                   </Text>
+                  {product.stock[size] === 0 && (
+                    <Text style={styles.outOfStockLabel}>Out of Stock</Text>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
-          </ScrollView>
-          <Text style={styles.remainingStock}>
-            {selectedSize ? `${product.stock[selectedSize]} stocks remaining` : 'Select a size to see availability'}
-          </Text>
-
-          {/* Description */}
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.description}>{product.description}</Text>
-        </View>
+            <TouchableOpacity
+              style={[
+                styles.addToCartButton,
+                !selectedSize && styles.disabledButton,
+              ]}
+              onPress={handleAddToCart}
+              disabled={!selectedSize}
+            >
+              <Text style={styles.addToCartText}>Add to Cart</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </ScrollView>
-
-      {/* Add to Cart Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[
-            styles.addToCartButton,
-            (!selectedSize || product.stock[selectedSize] === 0) && styles.disabledButton
-          ]}
-          disabled={!selectedSize || product.stock[selectedSize] === 0}
-        >
-          <Icon name="cart-plus" size={24} color="#fff" />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 };
@@ -255,47 +177,51 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    padding: 16,
   },
-  backButton: {
-    padding: 8,
+  errorText: {
+    fontSize: 18,
+    color: "red",
   },
-  cartButton: {
-    padding: 8,
+  content: {
+    flex: 1,
   },
   image: {
     width: width,
     height: width,
     resizeMode: "cover",
   },
-  infoContainer: {
+  detailsContainer: {
     padding: 16,
   },
   name: {
     fontSize: 24,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 4,
+    fontWeight: "bold",
+    marginBottom: 8,
   },
   brand: {
-    fontSize: 16,
+    fontSize: 18,
     color: "#666",
     marginBottom: 8,
+  },
+  description: {
+    fontSize: 16,
+    color: "#444",
+    marginBottom: 16,
+    lineHeight: 24,
   },
   priceContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   price: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#000",
+    marginRight: 8,
   },
   originalPrice: {
     fontSize: 18,
@@ -305,124 +231,72 @@ const styles = StyleSheet.create({
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   rating: {
-    fontSize: 16,
-    color: "#000",
+    fontSize: 18,
+    marginLeft: 4,
   },
   ratingCount: {
     fontSize: 16,
     color: "#666",
+    marginLeft: 4,
   },
-  sectionTitle: {
+  sizesTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 12,
+    fontWeight: "bold",
+    marginBottom: 8,
   },
   sizesContainer: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 24,
+    flexWrap: "wrap",
+    marginBottom: 16,
   },
   sizeButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#ddd",
-    justifyContent: "center",
+    borderRadius: 8,
+    padding: 12,
+    marginRight: 8,
+    marginBottom: 8,
+    minWidth: 60,
     alignItems: "center",
   },
-  selectedSizeButton: {
+  selectedSize: {
     borderColor: "#000",
     backgroundColor: "#000",
   },
+  outOfStock: {
+    borderColor: "#ddd",
+    backgroundColor: "#f5f5f5",
+  },
   sizeText: {
     fontSize: 16,
-    color: "#000",
   },
   selectedSizeText: {
     color: "#fff",
   },
-  remainingStock: {
-    fontSize: 14,
-    color: "red",
-    textAlign: "left",
-    marginTop: 8,
-    marginBottom: 24,
-    fontWeight: "500",
+  outOfStockText: {
+    color: "#999",
   },
-  description: {
-    fontSize: 16,
-    color: "#666",
-    lineHeight: 24,
-  },
-  footer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
+  outOfStockLabel: {
+    fontSize: 10,
+    color: "#999",
+    marginTop: 4,
   },
   addToCartButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
     backgroundColor: "#000",
-    padding: 16,
     borderRadius: 8,
-    gap: 8,
+    padding: 16,
+    alignItems: "center",
   },
   disabledButton: {
-    backgroundColor: "#999",
+    backgroundColor: "#ddd",
   },
   addToCartText: {
-    fontSize: 16,
-    fontWeight: "600",
     color: "#fff",
-  },
-  notification: {
-    position: "absolute",
-    top: 60,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    paddingHorizontal: 16,
-  },
-  notificationContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 6,
-  },
-  notificationIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#50C878",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  notificationTextContainer: {
-    flex: 1,
-  },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-  },
-  notificationMessage: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 2,
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });
 

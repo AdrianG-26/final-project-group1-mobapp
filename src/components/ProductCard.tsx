@@ -10,7 +10,8 @@ import {
   View,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { MainStackParamList, Product } from "../types";
+import { MainStackParamList } from "../types";
+import { Product } from "../types/index";
 
 interface ProductCardProps {
   product: Product;

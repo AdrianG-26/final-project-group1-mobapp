@@ -17,7 +17,8 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import ProductCard from "../../components/ProductCard";
 import FilterModal from "../../components/FilterModal";
 import { useAuth } from "../../context/AuthContext";
-import { MainStackParamList, Product } from "../../types";
+import { MainStackParamList } from "../../types";
+import { Product } from "../../types/index";
 import { getProducts, initializeSampleData } from "../../utils/storage";
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<MainStackParamList>;

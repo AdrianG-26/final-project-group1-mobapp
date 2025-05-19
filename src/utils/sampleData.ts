@@ -1,4 +1,4 @@
-import { Product } from "../types";
+import { Product } from "../types/index";
 
 // Create base products array
 const baseProducts: Product[] = [
