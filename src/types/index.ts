@@ -35,8 +35,9 @@ export interface Order {
   userId: string;
   items: CartItem[];
   total: number;
-  status: "pending" | "completed" | "cancelled";
+  status: "pending" | "completed" | "canceled";
   createdAt: string;
+  deliveryMethod: string;
   shippingAddress: {
     fullName: string;
     email: string;
@@ -77,6 +78,7 @@ export type MainStackParamList = {
   Cart: undefined;
   Checkout: undefined;
   OrderHistory: undefined;
+  OrderDetails: { orderId: string };
   Profile: undefined;
   AdminDashboard: undefined;
   UserManagement: undefined;

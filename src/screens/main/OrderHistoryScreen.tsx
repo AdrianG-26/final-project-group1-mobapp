@@ -57,8 +57,8 @@ const OrderHistoryScreen = () => {
   const getStatusColor = (status: Order["status"]) => {
     switch (status) {
       case "completed":
-        return "#34C759";
-      case "cancelled":
+        return "#4BB543";
+      case "canceled":
         return "#FF3B30";
       default:
         return "#FF9500";
@@ -150,7 +150,7 @@ const OrderHistoryScreen = () => {
             <TouchableOpacity
               style={styles.shopButton}
               onPress={() =>
-                navigation.navigate("MainTabs", { screen: "Home" })
+                navigation.navigate("HomeScreen")
               }
             >
               <Text style={styles.shopButtonText}>Start Shopping</Text>
