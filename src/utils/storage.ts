@@ -258,3 +258,33 @@ export const hasSeenOnboarding = async (): Promise<boolean> => {
     return false;
   }
 };
+
+// Add a getOrder function to fetch a single order by ID
+export const getOrder = async (orderId: string): Promise<any> => {
+  try {
+    const orders = await getOrders();
+    return orders.find((order) => order.id === orderId) || null;
+  } catch (error) {
+    console.error("Error getting order:", error);
+    throw error;
+  }
+};
+
+// Generic storage functions for key-value pairs
+export const storeValue = async (key: string, value: string): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(key, value);
+  } catch (error) {
+    console.error(`Error storing value for ${key}:`, error);
+    throw error;
+  }
+};
+
+export const getStoredValue = async (key: string): Promise<string | null> => {
+  try {
+    return await AsyncStorage.getItem(key);
+  } catch (error) {
+    console.error(`Error retrieving value for ${key}:`, error);
+    return null;
+  }
+};

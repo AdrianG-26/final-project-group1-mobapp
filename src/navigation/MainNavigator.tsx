@@ -8,6 +8,7 @@ import CartScreen from "../screens/main/CartScreen";
 import CheckoutScreen from "../screens/main/CheckoutScreen";
 import HomeScreen from "../screens/main/HomeScreen";
 import OrderHistoryScreen from "../screens/main/OrderHistoryScreen";
+import OrderDetailsScreen from "../screens/main/OrderDetailsScreen";
 import ProductDetailsScreen from "../screens/main/ProductDetailsScreen";
 import ProfileScreen from "../screens/main/ProfileScreen";
 
@@ -71,10 +72,11 @@ const MainNavigator = () => {
         headerShown: false,
       }}
     >
-      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen name="HomeScreen" component={TabNavigator} />
       <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
-      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="Profile" component={AdminDashboardScreen} />
+      <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
     </Stack.Navigator>
   );
 };

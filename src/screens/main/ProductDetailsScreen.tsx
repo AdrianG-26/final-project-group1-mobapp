@@ -1,5 +1,6 @@
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import React, { useEffect, useState, useRef } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -9,24 +10,33 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { MainStackParamList } from "../../types";
 import { getProducts } from "../../utils/storage";
 import { Product } from "../../types";
+import { useCart } from "../../context/CartContext";
 
 type ProductDetailsRouteProp = RouteProp<MainStackParamList, "ProductDetails">;
+type ProductDetailsNavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const { width } = Dimensions.get("window");
 
 const ProductDetailsScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<ProductDetailsNavigationProp>();
   const route = useRoute<ProductDetailsRouteProp>();
   const { productId } = route.params;
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const { addToCart } = useCart();
+  
+  // Custom notification states
+  const [notificationVisible, setNotificationVisible] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadProduct();
@@ -47,6 +57,88 @@ const ProductDetailsScreen = () => {
     }
   };
 
+  const showNotification = () => {
+    setNotificationVisible(true);
+    
+    // Fade in animation
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true
+    }).start();
+    
+    // Auto hide after 3 seconds
+    setTimeout(() => {
+      hideNotification();
+    }, 3000);
+  };
+  
+  const hideNotification = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true
+    }).start(() => {
+      setNotificationVisible(false);
+    });
+  };
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+    
+    if (!selectedSize) {
+      Alert.alert("Size Required", "Please select a size before adding to cart");
+      return;
+    }
+
+    try {
+      await addToCart(product, selectedSize);
+      showNotification();
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      Alert.alert("Error", "Failed to add item to cart");
+    }
+  };
+
+  // Custom notification component
+  const renderNotification = () => {
+    if (!notificationVisible || !product) return null;
+    
+    return (
+      <Animated.View 
+        style={[
+          styles.notification,
+          {
+            opacity: fadeAnim,
+            transform: [{
+              translateY: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [20, 0]
+              })
+            }]
+          }
+        ]}
+      >
+        <TouchableOpacity 
+          style={styles.notificationContent} 
+          onPress={() => {
+            hideNotification();
+            navigation.navigate("Cart");
+          }}
+        >
+          <View style={styles.notificationIconContainer}>
+            <Icon name="check-circle" size={24} color="#fff" />
+          </View>
+          <View style={styles.notificationTextContainer}>
+            <Text style={styles.notificationTitle}>Added to Cart</Text>
+            <Text style={styles.notificationMessage}>{product.name} (Size: {selectedSize})</Text>
+          </View>
+          <Icon name="chevron-right" size={20} color="#666" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
   if (loading || !product) {
     return (
       <SafeAreaView style={styles.container}>
@@ -59,6 +151,7 @@ const ProductDetailsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {renderNotification()}
       <ScrollView>
         {/* Header */}
         <View style={styles.header}>
@@ -68,7 +161,10 @@ const ProductDetailsScreen = () => {
           >
             <Icon name="arrow-left" size={24} color="#000" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cartButton}>
+          <TouchableOpacity 
+            style={styles.cartButton}
+            onPress={() => navigation.navigate("Cart")}
+          >
             <Icon name="cart-outline" size={24} color="#000" />
           </TouchableOpacity>
         </View>
@@ -128,7 +224,10 @@ const ProductDetailsScreen = () => {
 
       {/* Add to Cart Button */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.addToCartButton}>
+        <TouchableOpacity 
+          style={styles.addToCartButton}
+          onPress={handleAddToCart}
+        >
           <Icon name="cart-plus" size={24} color="#fff" />
           <Text style={styles.addToCartText}>Add to Cart</Text>
         </TouchableOpacity>
@@ -262,6 +361,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#fff",
+  },
+  notification: {
+    position: "absolute",
+    top: 60,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    paddingHorizontal: 16,
+  },
+  notificationContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 6,
+  },
+  notificationIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#50C878",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  notificationTextContainer: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#000",
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 2,
   },
 });
 

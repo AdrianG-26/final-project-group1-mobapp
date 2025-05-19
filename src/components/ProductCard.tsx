@@ -63,9 +63,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, style }) => {
           <Icon name="star" size={16} color="#000" />
           <Text style={styles.rating}>4.4</Text>
           <Text style={styles.ratingCount}>(4,089)</Text>
-          <TouchableOpacity style={styles.cartButton}>
-            <Icon name="cart-outline" size={20} color="#000" />
-          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
@@ -143,9 +140,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     flex: 1,
-  },
-  cartButton: {
-    padding: 4,
   },
 });
 
