@@ -15,7 +15,7 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import Button from "../../components/Button";
 import Input from "../../components/Input";
 import { useAuth } from "../../context/AuthContext";
-import { AuthStackParamList, RootStackParamList } from "../../types";
+import { AuthStackParamList, RootStackParamList } from "../../types/index";
 import { getUsers } from '../../utils/storage';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<

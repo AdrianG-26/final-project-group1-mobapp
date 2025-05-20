@@ -13,13 +13,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useAuth } from "../../context/AuthContext";
-import { MainStackParamList } from "../../types";
+import { MainStackParamList, RootStackParamList } from "../../types/index";
 import { getUsers, makeUserAdmin } from "../../utils/storage";
 
-type ProfileScreenNavigationProp = NativeStackNavigationProp<MainStackParamList>;
+type ProfileNavigationProp = NativeStackNavigationProp<MainStackParamList>;
+type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const ProfileScreen = () => {
-  const navigation = useNavigation<ProfileScreenNavigationProp>();
+  const navigation = useNavigation<ProfileNavigationProp>();
+  const rootNavigation = useNavigation<RootNavigationProp>();
   const { user, logout } = useAuth();
 
   const viewAllUsers = async () => {
@@ -69,9 +71,9 @@ const ProfileScreen = () => {
           onPress: async () => {
             await logout();
             // Reset navigation stack to login screen
-            navigation.reset({
+            rootNavigation.reset({
               index: 0,
-              routes: [{ name: "Auth" }], // This should be the name of your Auth stack
+              routes: [{ name: "Auth" }],
             });
           },
           style: "destructive",
@@ -131,7 +133,7 @@ const ProfileScreen = () => {
       icon: "account-cog",
       title: "User Management",
       onPress: () => {
-        navigation.navigate("UserManagement");
+        rootNavigation.navigate("UserManagement");
       },
     });
   }

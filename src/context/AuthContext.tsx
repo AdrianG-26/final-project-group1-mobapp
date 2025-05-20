@@ -50,10 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const users = await getUsers();
       console.log("Found users:", users.length);
 
+      // Type assertion to tell TypeScript that users have password field
       const user = users.find(
         (u) =>
           u.email.toLowerCase() === email.toLowerCase() &&
-          u.password === password
+          (u as any).password === password
       );
 
       console.log("Login success?", !!user);

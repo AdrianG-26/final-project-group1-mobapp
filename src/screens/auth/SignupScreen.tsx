@@ -1,4 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -15,11 +16,15 @@ import { v4 as uuidv4 } from "uuid";
 import Button from "../../components/Button";
 import Input from "../../components/Input";
 import { useAuth } from "../../context/AuthContext";
-import { User } from "../../types";
+import { AuthStackParamList, RootStackParamList, User } from "../../types/index";
 import { getUsers, saveUser } from "../../utils/storage";
 
+type SignupScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList>;
+type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 const SignupScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<SignupScreenNavigationProp>();
+  const rootNavigation = useNavigation<RootNavigationProp>();
   const { login } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,8 +44,12 @@ const SignupScreen = () => {
   // Fetch existing users on component mount
   useEffect(() => {
     const fetchUsers = async () => {
-      const users = await getUsers();
-      setExistingUsers(users);
+      try {
+        const users = await getUsers();
+        setExistingUsers(users as User[]);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
     };
     fetchUsers();
   }, []);
@@ -161,7 +170,6 @@ const SignupScreen = () => {
         email,
         password,
         isAdmin: false,
-        createdAt: new Date().toISOString(),
       };
 
       await saveUser(newUser);
@@ -171,7 +179,7 @@ const SignupScreen = () => {
 
       if (loginSuccess) {
         // Navigate to the main app
-        navigation.reset({
+        rootNavigation.reset({
           index: 0,
           routes: [{ name: "Main" }],
         });

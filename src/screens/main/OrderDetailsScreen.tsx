@@ -13,7 +13,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { MainStackParamList, Order, Product } from "../../types";
+import { MainStackParamList, Order } from "../../types";
+import { Product } from "../../types/index";
 import { getOrder, getProducts } from "../../utils/storage";
 
 type OrderDetailsRouteProp = RouteProp<MainStackParamList, "OrderDetails">;
@@ -73,7 +74,10 @@ const OrderDetailsScreen = () => {
 
     return (
       <View style={styles.orderItem}>
-        <Image source={{ uri: product.image }} style={styles.productImage} />
+        <Image 
+          source={typeof product.image === 'string' ? { uri: product.image } : product.image} 
+          style={styles.productImage} 
+        />
         <View style={styles.productInfo}>
           <Text style={styles.productName}>{product.name}</Text>
           <Text style={styles.productDetails}>Size: {item.size}</Text>

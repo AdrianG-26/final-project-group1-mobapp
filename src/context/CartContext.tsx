@@ -14,6 +14,7 @@ interface CartContextType {
     quantity: number
   ) => Promise<void>;
   clearCart: () => Promise<void>;
+  removeCheckedItems: () => Promise<void>;
   getTotalItems: () => number;
   getTotalPrice: (products: Product[]) => number;
   getCheckedItemsTotal: (products: Product[]) => number;
@@ -165,6 +166,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     setCheckedItems({});
   };
 
+  const removeCheckedItems = async () => {
+    // Get all the checked items
+    const checked = getCheckedItems();
+    
+    // Filter out the checked items from the cart
+    const newItems = items.filter(item => {
+      // Check if this item is in the checked items list
+      return !checked.some(
+        checkedItem => 
+          checkedItem.productId === item.productId && 
+          checkedItem.size === item.size
+      );
+    });
+    
+    // Save the filtered cart
+    await saveCart(newItems);
+  };
+
   const getTotalItems = () => {
     return items.reduce((total, item) => total + item.quantity, 0);
   };
@@ -255,6 +274,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         removeFromCart,
         updateQuantity,
         clearCart,
+        removeCheckedItems,
         getTotalItems,
         getTotalPrice,
         getCheckedItemsTotal,

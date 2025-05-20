@@ -34,6 +34,8 @@ const ProductDetailsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [showToast, setShowToast] = useState(false);
+  const toastAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -69,11 +71,39 @@ const ProductDetailsScreen = () => {
 
     try {
       await addToCart(product, selectedSize);
-      Alert.alert("Success", "Item added to cart successfully");
+      
+      // Reset animation value first
+      toastAnim.setValue(0);
+      setShowToast(true);
+      
+      // Start fade-in animation
+      Animated.timing(toastAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+      
+      // Set timer for fade-out
+      const timer = setTimeout(() => {
+        Animated.timing(toastAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => {
+          setShowToast(false);
+        });
+      }, 2500);
+      
+      // Clean up timer if component unmounts
+      return () => clearTimeout(timer);
     } catch (error) {
       console.error("Error adding to cart:", error);
       Alert.alert("Error", "Failed to add item to cart");
     }
+  };
+
+  const handleToastPress = () => {
+    navigation.navigate("Cart");
   };
 
   if (loading) {
@@ -98,8 +128,47 @@ const ProductDetailsScreen = () => {
     : product.price;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+          <Icon name="arrow-left" size={24} color="#000" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate("Cart")} style={styles.headerButton}>
+          <Icon name="cart-outline" size={24} color="#000" />
+        </TouchableOpacity>
+      </View>
+      
+      {showToast && (
+        <Animated.View 
+          style={[
+            styles.toast,
+            {
+              opacity: toastAnim,
+              transform: [{
+                translateY: toastAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-50, 0]
+                })
+              }]
+            }
+          ]}
+        >
+          <TouchableOpacity 
+            style={styles.toastContent} 
+            onPress={handleToastPress}
+            activeOpacity={0.9}
+          >
+            <Icon name="check-circle" size={24} color="#fff" />
+            <View style={styles.toastTextContainer}>
+              <Text style={styles.toastTitle}>Added to Cart</Text>
+              <Text style={styles.toastMessage}>Tap to view your cart</Text>
+            </View>
+            <Icon name="chevron-right" size={24} color="#fff" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
+      <ScrollView contentContainerStyle={showToast ? { paddingTop: 0 } : undefined}>
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
           <Image
             source={typeof product.image === 'string' ? { uri: product.image } : product.image}
@@ -171,6 +240,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    zIndex: 2,
+  },
+  headerButton: {
+    padding: 8,
   },
   loadingContainer: {
     flex: 1,
@@ -297,6 +377,38 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  toast: {
+    position: 'absolute',
+    top: 60, // Just below header
+    left: 16,
+    right: 16,
+    backgroundColor: '#000',
+    borderRadius: 8,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    zIndex: 10,
+  },
+  toastContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  toastTextContainer: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+  toastTitle: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  toastMessage: {
+    color: '#eee',
+    fontSize: 14,
   },
 });
 

@@ -28,7 +28,7 @@ import {
   AuthStackParamList,
   MainStackParamList,
   RootStackParamList,
-} from "../types";
+} from "../types/index";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();

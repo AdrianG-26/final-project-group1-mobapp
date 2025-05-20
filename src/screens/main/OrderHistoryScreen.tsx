@@ -11,7 +11,8 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useAuth } from "../../context/AuthContext";
-import { MainStackParamList, Order, Product } from "../../types";
+import { MainStackParamList, Order } from "../../types";
+import { Product } from "../../types/index";
 import { getOrders, getProducts } from "../../utils/storage";
 
 const OrderHistoryScreen = () => {

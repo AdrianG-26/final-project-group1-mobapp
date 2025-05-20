@@ -7,11 +7,17 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { User } from "../../types";
+import { User } from "../../types/index";
+import { MainStackParamList } from "../../types/index";
 import { deleteUser, getUsers, makeUserAdmin } from "../../utils/storage";
 
-const UserManagementScreen = ({ navigation }) => {
+type UserManagementScreenProps = {
+  navigation: NativeStackNavigationProp<MainStackParamList>;
+};
+
+const UserManagementScreen = ({ navigation }: UserManagementScreenProps) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +29,7 @@ const UserManagementScreen = ({ navigation }) => {
     try {
       setLoading(true);
       const allUsers = await getUsers();
-      setUsers(allUsers);
+      setUsers(allUsers as User[]);
     } catch (error) {
       console.error("Error loading users:", error);
       Alert.alert("Error", "Failed to load users");

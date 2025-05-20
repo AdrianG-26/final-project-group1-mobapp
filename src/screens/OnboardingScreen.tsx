@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { RootStackParamList } from "../types";
+import { RootStackParamList } from "../types/index";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

@@ -3,7 +3,7 @@ import Button from "../../components/Button";
 import Input from "../../components/Input";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
-import { MainStackParamList, Order, Product } from "../../types";
+import { MainStackParamList, Order, Product } from "../../types/index";
 import { getProducts, saveOrder, getStoredValue, storeValue } from "../../utils/storage";
 import { validateEmail } from "../../utils/validation";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -17,7 +17,7 @@ type CheckoutScreenNavigationProp = NativeStackNavigationProp<
 const CheckoutScreen = () => {
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
   const { user } = useAuth();
-  const { items, getTotalPrice, clearCart, checkedItems, getCheckedItemsTotal } = useCart();
+  const { items, getTotalPrice, clearCart, checkedItems, getCheckedItemsTotal, removeCheckedItems } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -68,6 +68,15 @@ const CheckoutScreen = () => {
   const [useDeliveryAsBilling, setUseDeliveryAsBilling] = useState(true);
   const [deliveryMethod, setDeliveryMethod] = useState("click-collect"); // click-collect or home-delivery
 
+  // Add new state variables for payment methods
+  const [paymentMethod, setPaymentMethod] = useState("cash-on-delivery"); // cash-on-delivery or credit-card
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardHolderName, setCardHolderName] = useState("");
+  const [expiryMonth, setExpiryMonth] = useState("");
+  const [expiryYear, setExpiryYear] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [paymentDetailsExpanded, setPaymentDetailsExpanded] = useState(false);
+
   // Error state
   const [errors, setErrors] = useState<{
     fullName?: string;
@@ -77,6 +86,11 @@ const CheckoutScreen = () => {
     state?: string;
     zipCode?: string;
     phone?: string;
+    cardNumber?: string;
+    cardHolderName?: string;
+    expiryMonth?: string;
+    expiryYear?: string;
+    cvv?: string;
   }>({});
 
   // Clear specific error when user types
@@ -113,6 +127,134 @@ const CheckoutScreen = () => {
         ...prev, 
         phone: "Phone number must be exactly 11 digits" 
       }));
+    }
+  };
+
+  // Validate card number using Luhn algorithm
+  const validateCardNumber = (number: string) => {
+    // Remove all non-digit characters
+    const cardNumber = number.replace(/\D/g, '');
+    
+    // Check if the length is 16 digits
+    if (cardNumber.length !== 16) {
+      return false;
+    }
+    
+    // Luhn algorithm (credit card validation)
+    let sum = 0;
+    let shouldDouble = false;
+    
+    // Loop through digits in reverse
+    for (let i = cardNumber.length - 1; i >= 0; i--) {
+      let digit = parseInt(cardNumber.charAt(i));
+      
+      if (shouldDouble) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      
+      sum += digit;
+      shouldDouble = !shouldDouble;
+    }
+    
+    return sum % 10 === 0;
+  };
+  
+  // Handle card number input with formatting
+  const handleCardNumberChange = (text: string) => {
+    // Remove all non-digit characters
+    const cardNumber = text.replace(/\D/g, '');
+    
+    // Format with spaces every 4 digits
+    let formattedNumber = '';
+    for (let i = 0; i < cardNumber.length; i++) {
+      if (i > 0 && i % 4 === 0) {
+        formattedNumber += ' ';
+      }
+      formattedNumber += cardNumber.charAt(i);
+    }
+    
+    // Limit to 16 digits (19 chars with spaces)
+    if (cardNumber.length <= 16) {
+      setCardNumber(formattedNumber);
+    }
+    
+    // Validate and set error
+    if (cardNumber.length > 0) {
+      if (cardNumber.length !== 16) {
+        setErrors(prev => ({...prev, cardNumber: "Card number must be 16 digits"}));
+      } else if (!validateCardNumber(cardNumber)) {
+        setErrors(prev => ({...prev, cardNumber: "Invalid card number"}));
+      } else {
+        clearError('cardNumber');
+      }
+    } else {
+      clearError('cardNumber');
+    }
+  };
+  
+  // Handle expiry month input with validation
+  const handleExpiryMonthChange = (text: string) => {
+    // Remove all non-digit characters
+    const month = text.replace(/\D/g, '');
+    
+    if (month.length <= 2) {
+      setExpiryMonth(month);
+    }
+    
+    // Validate month (1-12)
+    if (month.length > 0) {
+      const monthNum = parseInt(month, 10);
+      if (monthNum < 1 || monthNum > 12) {
+        setErrors(prev => ({...prev, expiryMonth: "Month must be 1-12"}));
+      } else {
+        clearError('expiryMonth');
+      }
+    } else {
+      clearError('expiryMonth');
+    }
+  };
+  
+  // Handle expiry year input with validation
+  const handleExpiryYearChange = (text: string) => {
+    // Remove all non-digit characters
+    const year = text.replace(/\D/g, '');
+    
+    if (year.length <= 4) {
+      setExpiryYear(year);
+    }
+    
+    // Validate year (current or future years)
+    if (year.length === 4) {
+      const currentYear = new Date().getFullYear();
+      const yearNum = parseInt(year, 10);
+      
+      if (yearNum < currentYear) {
+        setErrors(prev => ({...prev, expiryYear: "Year cannot be in the past"}));
+      } else {
+        clearError('expiryYear');
+      }
+    } else if (year.length > 0) {
+      setErrors(prev => ({...prev, expiryYear: "Year must be 4 digits"}));
+    } else {
+      clearError('expiryYear');
+    }
+  };
+  
+  // Handle CVV input with validation
+  const handleCvvChange = (text: string) => {
+    // Remove all non-digit characters
+    const cvvText = text.replace(/\D/g, '');
+    
+    if (cvvText.length <= 3) {
+      setCvv(cvvText);
+    }
+    
+    // Validate CVV (3 digits)
+    if (cvvText.length > 0 && cvvText.length !== 3) {
+      setErrors(prev => ({...prev, cvv: "CVV must be 3 digits"}));
+    } else {
+      clearError('cvv');
     }
   };
 
@@ -166,6 +308,11 @@ const CheckoutScreen = () => {
       state?: string;
       zipCode?: string;
       phone?: string;
+      cardNumber?: string;
+      cardHolderName?: string;
+      expiryMonth?: string;
+      expiryYear?: string;
+      cvv?: string;
     } = {};
 
     if (!fullName) newErrors.fullName = "Full name is required";
@@ -177,6 +324,64 @@ const CheckoutScreen = () => {
       if (!address) newErrors.address = "Address is required";
       if (!phone) newErrors.phone = "Phone number is required";
       else if (phone.length !== 11) newErrors.phone = "Phone number must be exactly 11 digits";
+    }
+
+    // Validate credit card details if credit card is selected as payment method
+    if (paymentMethod === "credit-card") {
+      // Validate card number
+      if (!cardNumber) {
+        newErrors.cardNumber = "Card number is required";
+      } else {
+        const digitsOnly = cardNumber.replace(/\D/g, '');
+        if (digitsOnly.length !== 16) {
+          newErrors.cardNumber = "Card number must be 16 digits";
+        } else if (!validateCardNumber(digitsOnly)) {
+          newErrors.cardNumber = "Invalid card number";
+        }
+      }
+      
+      // Validate card holder name
+      if (!cardHolderName) {
+        newErrors.cardHolderName = "Cardholder name is required";
+      }
+      
+      // Validate expiry month
+      if (!expiryMonth) {
+        newErrors.expiryMonth = "Expiry month is required";
+      } else {
+        const monthNum = parseInt(expiryMonth, 10);
+        if (monthNum < 1 || monthNum > 12) {
+          newErrors.expiryMonth = "Month must be 1-12";
+        }
+      }
+      
+      // Validate expiry year
+      if (!expiryYear) {
+        newErrors.expiryYear = "Expiry year is required";
+      } else if (expiryYear.length !== 4) {
+        newErrors.expiryYear = "Year must be 4 digits";
+      } else {
+        const yearNum = parseInt(expiryYear, 10);
+        const currentYear = new Date().getFullYear();
+        if (yearNum < currentYear) {
+          newErrors.expiryYear = "Year cannot be in the past";
+        }
+        
+        // Check if card is expired
+        if (parseInt(expiryYear, 10) === currentYear) {
+          const currentMonth = new Date().getMonth() + 1; // getMonth() is 0-based
+          if (parseInt(expiryMonth, 10) < currentMonth) {
+            newErrors.expiryMonth = "Card has expired";
+          }
+        }
+      }
+      
+      // Validate CVV
+      if (!cvv) {
+        newErrors.cvv = "CVV is required";
+      } else if (cvv.length !== 3) {
+        newErrors.cvv = "CVV must be 3 digits";
+      }
     }
 
     setErrors(newErrors);
@@ -220,6 +425,14 @@ const CheckoutScreen = () => {
           phone,
         },
         deliveryMethod,
+        paymentMethod,
+        paymentDetails: {
+          cardNumber,
+          cardHolderName,
+          expiryMonth,
+          expiryYear,
+          cvv,
+        },
       };
 
       await saveOrder(order);
@@ -231,7 +444,8 @@ const CheckoutScreen = () => {
         await storeValue(`user_${user.id}_address`, address);
       }
       
-      await clearCart();
+      // Only remove the items that were checked out
+      await removeCheckedItems();
       
       // Show success toast notification
       Toast.show({
@@ -376,7 +590,10 @@ const CheckoutScreen = () => {
                   
                   return (
                     <View key={`${item.productId}-${item.size}`} style={styles.parcelItem}>
-                      <Image source={{ uri: product.image }} style={styles.productImage} />
+                      <Image 
+                        source={typeof product.image === 'string' ? { uri: product.image } : product.image} 
+                        style={styles.productImage}
+                      />
                       <View style={styles.productInfo}>
                         <Text style={styles.productName}>{product.name}</Text>
                         <Text style={styles.productDetails}>Size {item.size}</Text>
@@ -435,8 +652,138 @@ const CheckoutScreen = () => {
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.formFields}>
-                  {/* Form fields moved to home section */}
+                {/* Payment Methods Section */}
+                <View style={styles.section}>
+                  <Text style={styles.deliveryMethodTitle}>Please select your payment method</Text>
+                  
+                  {/* Cash on Delivery Option */}
+                  <View style={styles.deliveryTypeContainer}>
+                    <View style={styles.deliveryTypeHeader}>
+                      <Icon name="cash" size={22} color="#000" />
+                      <Text style={styles.deliveryTypeTitle}>Cash on Delivery</Text>
+                    </View>
+                    
+                    <TouchableOpacity 
+                      style={styles.deliveryOption}
+                      onPress={() => {
+                        setPaymentMethod("cash-on-delivery");
+                        setPaymentDetailsExpanded(false);
+                      }}
+                    >
+                      <View style={styles.radioButton}>
+                        {paymentMethod === "cash-on-delivery" && <View style={styles.radioButtonInner} />}
+                      </View>
+                      <View style={styles.deliveryOptionContent}>
+                        <Text style={styles.deliveryOptionText}>Pay when you receive</Text>
+                        <Text style={styles.deliveryOptionSubtext}>No additional fees</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Credit Card Option */}
+                  <View style={styles.deliveryTypeContainer}>
+                    <View style={styles.deliveryTypeHeader}>
+                      <Icon name="credit-card" size={22} color="#000" />
+                      <Text style={styles.deliveryTypeTitle}>Credit Card</Text>
+                    </View>
+                    
+                    <TouchableOpacity 
+                      style={styles.deliveryOption}
+                      onPress={() => {
+                        setPaymentMethod("credit-card");
+                        setPaymentDetailsExpanded(true);
+                      }}
+                    >
+                      <View style={styles.radioButton}>
+                        {paymentMethod === "credit-card" && <View style={styles.radioButtonInner} />}
+                      </View>
+                      <View style={styles.deliveryOptionContent}>
+                        <Text style={styles.deliveryOptionText}>Pay with credit card</Text>
+                        <Text style={styles.deliveryOptionSubtext}>Secure online payment</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Credit Card Details */}
+                    {paymentMethod === "credit-card" && paymentDetailsExpanded && (
+                      <View style={styles.cardDetailsContainer}>
+                        <Input
+                          label="Card Number"
+                          value={cardNumber}
+                          onChangeText={handleCardNumberChange}
+                          placeholder="1234 5678 9012 3456"
+                          keyboardType="numeric"
+                          maxLength={19} // 16 digits + 3 spaces
+                          error={errors.cardNumber}
+                          containerStyle={styles.inputContainer}
+                          leftIcon={<Icon name="credit-card-outline" size={22} color="#666" />}
+                        />
+                        
+                        <Input
+                          label="Cardholder Name"
+                          value={cardHolderName}
+                          onChangeText={(text) => {
+                            setCardHolderName(text);
+                            clearError('cardHolderName');
+                          }}
+                          placeholder="John Doe"
+                          error={errors.cardHolderName}
+                          containerStyle={styles.inputContainer}
+                          leftIcon={<Icon name="account-outline" size={22} color="#666" />}
+                        />
+                        
+                        <View style={styles.cardExpiryContainer}>
+                          <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
+                            <Input
+                              label="Month (MM)"
+                              value={expiryMonth}
+                              onChangeText={handleExpiryMonthChange}
+                              placeholder="MM"
+                              keyboardType="numeric"
+                              maxLength={2}
+                              error={errors.expiryMonth}
+                              containerStyle={{ marginBottom: 0 }}
+                              leftIcon={<Icon name="calendar-month" size={20} color="#666" />}
+                            />
+                          </View>
+                          
+                          <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
+                            <Input
+                              label="Year (YYYY)"
+                              value={expiryYear}
+                              onChangeText={handleExpiryYearChange}
+                              placeholder="YYYY"
+                              keyboardType="numeric"
+                              maxLength={4}
+                              error={errors.expiryYear}
+                              containerStyle={{ marginBottom: 0 }}
+                              leftIcon={<Icon name="calendar" size={20} color="#666" />}
+                            />
+                          </View>
+                          
+                          <View style={[styles.inputContainer, { flex: 0.8 }]}>
+                            <Input
+                              label="CVV"
+                              value={cvv}
+                              onChangeText={handleCvvChange}
+                              placeholder="123"
+                              keyboardType="numeric"
+                              maxLength={3}
+                              error={errors.cvv}
+                              containerStyle={{ marginBottom: 0 }}
+                              leftIcon={<Icon name="lock-outline" size={20} color="#666" />}
+                            />
+                          </View>
+                        </View>
+                        
+                        <View style={styles.cardSecurityInfo}>
+                          <Icon name="shield-check" size={20} color="#4CAF50" />
+                          <Text style={styles.cardSecurityText}>
+                            Your payment information is processed securely. We do not store your credit card details.
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
                 </View>
               </View>
 
@@ -457,6 +804,12 @@ const CheckoutScreen = () => {
                   <Text style={styles.summaryLabel}>Delivery Method</Text>
                   <Text style={styles.summaryValue}>
                     {deliveryMethod === "home-delivery" ? "Home Delivery" : "Click & Collect"}
+                  </Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Payment Method</Text>
+                  <Text style={styles.summaryValue}>
+                    {paymentMethod === "credit-card" ? "Credit Card" : "Cash on Delivery"}
                   </Text>
                 </View>
                 <View style={[styles.summaryRow, styles.totalRow]}>
@@ -484,6 +837,12 @@ const CheckoutScreen = () => {
                 <Text style={styles.summaryLabel}>Delivery Method</Text>
                 <Text style={styles.summaryValue}>
                   {deliveryMethod === "home-delivery" ? "Home Delivery" : "Click & Collect"}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Payment Method</Text>
+                <Text style={styles.summaryValue}>
+                  {paymentMethod === "credit-card" ? "Credit Card" : "Cash on Delivery"}
                 </Text>
               </View>
               <View style={[styles.summaryRow, styles.totalRow]}>
@@ -791,6 +1150,31 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#000",
     marginBottom: 16,
+  },
+  cardDetailsContainer: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+  },
+  cardExpiryContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  cardSecurityInfo: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  cardSecurityText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 8,
   },
 });
 

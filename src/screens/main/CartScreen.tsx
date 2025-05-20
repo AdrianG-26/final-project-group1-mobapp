@@ -11,12 +11,14 @@ import {
   View,
   StatusBar,
   Modal,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import Button from "../../components/Button";
 import { useCart } from "../../context/CartContext";
-import { MainStackParamList, Product } from "../../types";
+import { MainStackParamList } from "../../types";
+import { Product } from "../../types/index";
 import { getProducts } from "../../utils/storage";
 
 type CartScreenNavigationProp = NativeStackNavigationProp<MainStackParamList>;
@@ -62,10 +64,31 @@ const CartScreen = () => {
     newQuantity: number
   ) => {
     if (newQuantity < 1) {
-      await handleRemoveItem(productId, size);
+      confirmRemoveItem(productId, size);
       return;
     }
     await updateQuantity(productId, size, newQuantity);
+  };
+
+  const confirmRemoveItem = (productId: string, size: string) => {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+    
+    Alert.alert(
+      "Remove Item",
+      `Remove ${product.name} from your cart?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Remove",
+          onPress: () => handleRemoveItem(productId, size),
+          style: "destructive"
+        }
+      ]
+    );
   };
 
   const handleRemoveItem = async (productId: string, size: string) => {
@@ -217,7 +240,10 @@ const CartScreen = () => {
             color="#000"
           />
         </TouchableOpacity>
-        <Image source={{ uri: product.image }} style={styles.itemImage} />
+        <Image 
+          source={typeof product.image === 'string' ? { uri: product.image } : product.image} 
+          style={styles.itemImage}
+        />
         <View style={styles.itemDetails}>
           <Text style={styles.itemName} numberOfLines={2}>{product.name}</Text>
           <View style={styles.itemOptions}>
@@ -262,7 +288,7 @@ const CartScreen = () => {
           <Text style={styles.itemPrice}>₱{product.price.toLocaleString()}</Text>
         </View>
         <TouchableOpacity
-          onPress={() => handleRemoveItem(item.productId, item.size)}
+          onPress={() => confirmRemoveItem(item.productId, item.size)}
           style={styles.removeButton}
         >
           <Icon name="trash-can-outline" size={24} color="red" />
@@ -434,6 +460,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 8,
+    backgroundColor: "#f5f5f5",
   },
   itemDetails: {
     flex: 1,

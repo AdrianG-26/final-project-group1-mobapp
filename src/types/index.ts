@@ -38,6 +38,14 @@ export interface Order {
   status: "pending" | "completed" | "canceled";
   createdAt: string;
   deliveryMethod: string;
+  paymentMethod: string;
+  paymentDetails?: {
+    cardNumber?: string;
+    cardHolderName?: string;
+    expiryMonth?: string;
+    expiryYear?: string;
+    cvv?: string;
+  };
   shippingAddress: {
     fullName: string;
     email: string;
