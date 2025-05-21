@@ -77,7 +77,6 @@ const MainNavigator = () => {
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
       <Stack.Screen name="Profile" component={AdminDashboardScreen} />
       <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
-      <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
     </Stack.Navigator>
   );
 };

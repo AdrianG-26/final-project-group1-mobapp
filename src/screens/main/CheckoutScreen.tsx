@@ -1,4 +1,4 @@
-import { useNavigation } from "@react-navigation/native";import { NativeStackNavigationProp } from "@react-navigation/native-stack";import React, { useEffect, useState, useMemo } from "react";import {  ActivityIndicator,  Image,  KeyboardAvoidingView,  Platform,  ScrollView,  StyleSheet,  Text,  TouchableOpacity,  View,} from "react-native";import { v4 as uuidv4 } from "uuid";
+import { useNavigation } from "@react-navigation/native";import { NativeStackNavigationProp } from "@react-navigation/native-stack";import React, { useEffect, useState, useMemo } from "react";import {  ActivityIndicator,  Image,  KeyboardAvoidingView,  Platform,  ScrollView,  StyleSheet,  Text,  TouchableOpacity,  View, Alert} from "react-native";import { v4 as uuidv4 } from "uuid";
 import Button from "../../components/Button";
 import Input from "../../components/Input";
 import { useAuth } from "../../context/AuthContext";
@@ -426,94 +426,84 @@ const CheckoutScreen = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (!validateForm()) {
-      // If address or phone are missing, expand the address details
-      if (!address || !phone) {
-        setAddressDetailsExpanded(true);
-        
-        // Allow time for the expansion to happen before scrolling
-        setTimeout(() => {
-          scrollViewRef.current?.scrollTo({
-            y: 0,
-            animated: true
-          });
-        }, 100);
-      }
-      return;
-    }
-
-    setProcessing(true);
     try {
-      const orderId = uuidv4();
+      setProcessing(true);
+
+      // Validate all fields are filled
+      if (!validateForm()) {
+        setProcessing(false);
+        return;
+      }
+
+      // Get products for stock validation
+      const products = await getProducts();
+
+      // Try to update stock first
+      try {
+        await updateProductStock(checkedItems);
+      } catch (error) {
+        if (error instanceof Error) {
+          Alert.alert("Stock Error", error.message);
+        } else {
+          Alert.alert("Error", "Failed to update product stock. Please try again.");
+        }
+        setProcessing(false);
+        return;
+      }
+
+      // Create order object
       const order: Order = {
-        id: orderId,
+        id: uuidv4(),
         userId: user?.id || "",
         items: checkedItems,
-        total: getTotalAmount(),
+        total: getCheckedItemsTotal(products),
         status: "pending",
         createdAt: new Date().toISOString(),
         shippingAddress: {
-          fullName,
-          email,
-          address,
-          city,
-          state,
-          zipCode,
-          phone,
+          fullName: fullName,
+          email: email,
+          address: address,
+          city: city,
+          state: state,
+          zipCode: zipCode,
+          phone: phone,
         },
-        deliveryMethod,
-        paymentMethod,
+        deliveryMethod: deliveryMethod,
+        paymentMethod: "card",
         paymentDetails: {
-          cardNumber,
-          cardHolderName,
-          expiryMonth,
-          expiryYear,
-          cvv,
+          cardNumber: cardNumber.replace(/\s/g, ""),
+          cardHolderName: cardHolderName,
+          expiryMonth: expiryMonth,
+          expiryYear: expiryYear,
+          cvv: cvv,
         },
       };
 
-      // Save the order first
+      // Save order
       await saveOrder(order);
-      
-      // Update product stock
-      await updateProductStock(checkedItems);
-      
-      // Save user data for all users (not just first-time)
-      if (user) {
-        await storeValue(`user_${user.id}_hasPlacedOrder`, 'true');
-        await storeValue(`user_${user.id}_phone`, phone);
-        await storeValue(`user_${user.id}_address`, address);
-      }
-      
-      // Only remove the items that were checked out
+
+      // Clear checked items from cart
       await removeCheckedItems();
-      
-      // Show success toast notification
-      Toast.show({
-        type: 'success',
-        text1: 'Order Placed Successfully',
-        text2: deliveryMethod === 'click-collect' 
-          ? `Pick up available on ${deliveryDates.clickCollect}`
-          : `Delivery expected by ${deliveryDates.homeDelivery}`,
-        visibilityTime: 4000,
-        topOffset: 50
-      });
-      
-      // Navigate to home screen after successful order placement
-      navigation.navigate("HomeScreen");
-      
+
+      // Show success message
+      Alert.alert(
+        "Success",
+        "Your order has been placed successfully!",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              navigation.navigate("OrderHistory");
+            },
+          },
+        ]
+      );
     } catch (error) {
-      console.error("Checkout error:", error);
-      setErrors({
-        email: "An error occurred. Please try again.",
-      });
-      
-      // Show error toast
-      Toast.show({
-        type: 'error',
-        text1: 'Order Failed',
-        text2: 'There was an error processing your order. Please try again.',
-      });
+      console.error("Error placing order:", error);
+      Alert.alert(
+        "Error",
+        "There was an error placing your order. Please try again."
+      );
     } finally {
       setProcessing(false);
     }

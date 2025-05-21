@@ -68,16 +68,6 @@ const CartStackNavigator = () => {
   );
 };
 
-const CartScreenWithTabs = () => {
-  return (
-    <View style={{ flex: 1 }}>
-      <CartScreen />
-      <TabNavigator />
-    </View>
-  );
-};
-
-
 const HomeStackScreen = () => {
   return (
     <HomeStack.Navigator

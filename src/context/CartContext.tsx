@@ -35,8 +35,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   const [checkedItems, setCheckedItems] = useState<{[key: string]: boolean}>({});
   const { user } = useAuth();
 
+  // Load cart when user changes
   useEffect(() => {
     loadCart();
+  }, [user?.id]); // Depend on user.id instead of user object to prevent unnecessary reloads
+
+  // Clear cart when user logs out
+  useEffect(() => {
+    if (!user) {
+      clearCart();
+    }
   }, [user]);
 
   const loadCart = async () => {
@@ -52,6 +60,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       setCheckedItems(initialCheckedState);
     } catch (error) {
       console.error("Error loading cart:", error);
+      // Reset to empty state on error
+      setItems([]);
+      setCheckedItems({});
     }
   };
 

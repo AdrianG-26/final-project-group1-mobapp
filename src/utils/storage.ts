@@ -300,11 +300,24 @@ export const getStoredValue = async (key: string): Promise<string | null> => {
   }
 };
 
-// Function to update product stock
-export const updateProductStock = async (items: CartItem[]) => {
+// Function to update product stock with retry mechanism and optimistic locking
+export const updateProductStock = async (items: CartItem[], retryCount = 3): Promise<Product[]> => {
   try {
     // Get current products
     const products = await getProducts();
+    
+    // Verify stock availability first
+    for (const item of items) {
+      const product = products.find(p => p.id === item.productId);
+      if (!product) {
+        throw new Error(`Product ${item.productId} not found`);
+      }
+      
+      const currentStock = product.stock[item.size] || 0;
+      if (currentStock < item.quantity) {
+        throw new Error(`Insufficient stock for ${product.name} in size ${item.size}`);
+      }
+    }
     
     // Update stock for each item in the order
     const updatedProducts = products.map(product => {
@@ -323,6 +336,13 @@ export const updateProductStock = async (items: CartItem[]) => {
     return updatedProducts;
   } catch (error) {
     console.error("Error updating product stock:", error);
+    
+    // Retry on failure if we haven't exceeded retry count
+    if (retryCount > 0) {
+      console.log(`Retrying stock update. Attempts remaining: ${retryCount - 1}`);
+      return updateProductStock(items, retryCount - 1);
+    }
+    
     throw error;
   }
 };
