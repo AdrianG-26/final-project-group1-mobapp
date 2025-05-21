@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { CartItem } from "../types";
 import { Product } from "../types/index";
 import { getCart, updateCart } from "../utils/storage";
+import { useAuth } from "./AuthContext";
 
 interface CartContextType {
   items: CartItem[];
@@ -32,10 +33,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [checkedItems, setCheckedItems] = useState<{[key: string]: boolean}>({});
+  const { user } = useAuth();
 
   useEffect(() => {
     loadCart();
-  }, []);
+  }, [user]);
 
   const loadCart = async () => {
     try {

@@ -100,19 +100,12 @@ const CheckoutScreen = () => {
     }
   };
 
-  // Validate phone number - must be exactly 11 digits
-  const validatePhoneNumber = (value: string) => {
-    const digitsOnly = value.replace(/\D/g, '');
-    return digitsOnly.length === 11;
-  };
-
   // Handle phone number change with validation
   const handlePhoneChange = (value: string) => {
     // Only allow digits but don't trim length
     const digitsOnly = value.replace(/\D/g, '');
     setPhone(digitsOnly);
     
-    // Show validation message based on length
     if (digitsOnly.length > 11) {
       setErrors(prev => ({ 
         ...prev, 
@@ -127,6 +120,24 @@ const CheckoutScreen = () => {
         ...prev, 
         phone: "Phone number must be exactly 11 digits" 
       }));
+    } else {
+      // Show required error if field is empty
+      setErrors(prev => ({ 
+        ...prev, 
+        phone: "Phone number is required" 
+      }));
+    }
+  };
+
+  // Handle address change with proper validation
+  const handleAddressChange = (value: string) => {
+    setAddress(value);
+    
+    // Always require address regardless of user type
+    if (value.trim() === '') {
+      setErrors(prev => ({ ...prev, address: "Address is required" }));
+    } else {
+      clearError('address');
     }
   };
 
@@ -208,7 +219,16 @@ const CheckoutScreen = () => {
       if (monthNum < 1 || monthNum > 12) {
         setErrors(prev => ({...prev, expiryMonth: "Month must be 1-12"}));
       } else {
-        clearError('expiryMonth');
+        // Check if the year is the current year and the month is in the past
+        const currentYear = new Date().getFullYear();
+        const yearNum = expiryYear ? parseInt(expiryYear, 10) : 0;
+        const currentMonth = new Date().getMonth() + 1; // getMonth() is 0-based
+        
+        if (yearNum === currentYear && monthNum < currentMonth) {
+          setErrors(prev => ({...prev, expiryMonth: "Month cannot be in the past"}));
+        } else {
+          clearError('expiryMonth');
+        }
       }
     } else {
       clearError('expiryMonth');
@@ -235,6 +255,18 @@ const CheckoutScreen = () => {
           setErrors(prev => ({...prev, expiryYear: `Year cannot be later than ${maxYear}`}));
         } else {
           clearError('expiryYear');
+          
+          // If the year is valid, also check if month is valid for this year
+          if (yearNum === currentYear && expiryMonth) {
+            const monthNum = parseInt(expiryMonth, 10);
+            const currentMonth = new Date().getMonth() + 1; // getMonth() is 0-based
+            
+            if (monthNum < currentMonth) {
+              setErrors(prev => ({...prev, expiryMonth: "Month cannot be in the past"}));
+            } else {
+              clearError('expiryMonth');
+            }
+          }
         }
       } else if (year.length > 0) {
         setErrors(prev => ({...prev, expiryYear: "Year must be 4 digits"}));
@@ -322,12 +354,10 @@ const CheckoutScreen = () => {
     if (!email) newErrors.email = "Email is required";
     else if (!validateEmail(email)) newErrors.email = "Invalid email format";
     
-    // Only validate address and phone for first-time users
-    if (isFirstTimeUser) {
-      if (!address) newErrors.address = "Address is required";
-      if (!phone) newErrors.phone = "Phone number is required";
-      else if (phone.length !== 11) newErrors.phone = "Phone number must be exactly 11 digits";
-    }
+    // Require address and phone for all users
+    if (!address) newErrors.address = "Address is required";
+    if (!phone) newErrors.phone = "Phone number is required";
+    else if (phone.length !== 11) newErrors.phone = "Phone number must be exactly 11 digits";
 
     // Validate credit card details if credit card is selected as payment method
     if (paymentMethod === "credit-card") {
@@ -378,7 +408,7 @@ const CheckoutScreen = () => {
         if (yearNum === currentYear) {
           const currentMonth = new Date().getMonth() + 1; // getMonth() is 0-based
           if (parseInt(expiryMonth, 10) < currentMonth) {
-            newErrors.expiryMonth = "Card has expired";
+            newErrors.expiryMonth = "Month cannot be in the past";
           }
         }
       }
@@ -398,7 +428,7 @@ const CheckoutScreen = () => {
   const handlePlaceOrder = async () => {
     if (!validateForm()) {
       // If address or phone are missing, expand the address details
-      if (isFirstTimeUser && (!address || !phone)) {
+      if (!address || !phone) {
         setAddressDetailsExpanded(true);
         
         // Allow time for the expansion to happen before scrolling
@@ -448,8 +478,8 @@ const CheckoutScreen = () => {
       // Update product stock
       await updateProductStock(checkedItems);
       
-      // Save user data after first order
-      if (isFirstTimeUser && user) {
+      // Save user data for all users (not just first-time)
+      if (user) {
         await storeValue(`user_${user.id}_hasPlacedOrder`, 'true');
         await storeValue(`user_${user.id}_phone`, phone);
         await storeValue(`user_${user.id}_address`, address);
@@ -572,7 +602,7 @@ const CheckoutScreen = () => {
                       inputStyle={styles.nonEditableInput}
                     />
                     <Input
-                      label={`Phone Number${isFirstTimeUser ? '' : ' (Optional)'}`}
+                      label="Phone Number"
                       value={phone}
                       onChangeText={handlePhoneChange}
                       keyboardType="phone-pad"
@@ -580,12 +610,9 @@ const CheckoutScreen = () => {
                       containerStyle={{...styles.inputContainer}}
                     />
                     <Input
-                      label={`Address${isFirstTimeUser ? '' : ' (Optional)'}`}
+                      label="Address"
                       value={address}
-                      onChangeText={(value) => {
-                        setAddress(value);
-                        clearError('address');
-                      }}
+                      onChangeText={handleAddressChange}
                       error={errors.address}
                       containerStyle={{...styles.inputContainer}}
                     />
@@ -744,7 +771,7 @@ const CheckoutScreen = () => {
                             setCardHolderName(text);
                             clearError('cardHolderName');
                           }}
-                          placeholder="John Doe"
+                          placeholder="Levi Ackerman"
                           error={errors.cardHolderName}
                           containerStyle={styles.inputContainer}
                           leftIcon={<Icon name="account-outline" size={22} color="#666" />}
@@ -779,7 +806,7 @@ const CheckoutScreen = () => {
                             />
                           </View>
                           
-                          <View style={[styles.inputContainer, { flex: 0.8 }]}>
+                          <View style={[styles.inputContainer, { flex: 0.9 }]}>
                             <Input
                               label="CVV"
                               value={cvv}

@@ -234,17 +234,25 @@ export const getUserOrders = async (userId: string): Promise<Order[]> => {
 // Cart operations
 export const getCart = async (): Promise<Record<string, any>> => {
   try {
-    const cart = await AsyncStorage.getItem(STORAGE_KEYS.CART);
-    return cart ? JSON.parse(cart) : {};
+    // Get current user to make cart user-specific
+    const currentUser = await getCurrentUser();
+    const cartKey = currentUser ? `${STORAGE_KEYS.CART}_${currentUser.id}` : STORAGE_KEYS.CART;
+    
+    const cart = await AsyncStorage.getItem(cartKey);
+    return cart ? JSON.parse(cart) : { items: [] };
   } catch (error) {
     console.error("Error getting cart:", error);
-    return {};
+    return { items: [] };
   }
 };
 
 export const updateCart = async (cart: Record<string, any>): Promise<void> => {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+    // Get current user to make cart user-specific
+    const currentUser = await getCurrentUser();
+    const cartKey = currentUser ? `${STORAGE_KEYS.CART}_${currentUser.id}` : STORAGE_KEYS.CART;
+    
+    await AsyncStorage.setItem(cartKey, JSON.stringify(cart));
   } catch (error) {
     console.error("Error updating cart:", error);
     throw error;
