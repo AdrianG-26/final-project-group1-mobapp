@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Order, User, Product } from "../types/index";
+import { Order, User, Product, CartItem } from "../types/index";
 import { sampleProducts } from "./sampleData";
 
 // Storage keys
@@ -155,11 +155,16 @@ export const saveProduct = async (product: Product): Promise<void> => {
 
 export const getProducts = async (): Promise<Product[]> => {
   try {
-    const products = await AsyncStorage.getItem(STORAGE_KEYS.PRODUCTS);
-    return products ? JSON.parse(products) : [];
+    const storedProducts = await AsyncStorage.getItem(STORAGE_KEYS.PRODUCTS);
+    if (storedProducts) {
+      return JSON.parse(storedProducts);
+    }
+    // If no stored products, initialize with sample data
+    await AsyncStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(sampleProducts));
+    return sampleProducts;
   } catch (error) {
     console.error("Error getting products:", error);
-    return [];
+    return sampleProducts;
   }
 };
 
@@ -284,5 +289,32 @@ export const getStoredValue = async (key: string): Promise<string | null> => {
   } catch (error) {
     console.error(`Error retrieving value for ${key}:`, error);
     return null;
+  }
+};
+
+// Function to update product stock
+export const updateProductStock = async (items: CartItem[]) => {
+  try {
+    // Get current products
+    const products = await getProducts();
+    
+    // Update stock for each item in the order
+    const updatedProducts = products.map(product => {
+      const orderItem = items.find(item => item.productId === product.id);
+      if (orderItem) {
+        // Create a new stock object to avoid mutating the original
+        const newStock = { ...product.stock };
+        newStock[orderItem.size] = Math.max(0, (newStock[orderItem.size] || 0) - orderItem.quantity);
+        return { ...product, stock: newStock };
+      }
+      return product;
+    });
+    
+    // Save updated products
+    await AsyncStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
+    return updatedProducts;
+  } catch (error) {
+    console.error("Error updating product stock:", error);
+    throw error;
   }
 };

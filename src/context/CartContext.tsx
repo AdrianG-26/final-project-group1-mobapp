@@ -6,7 +6,7 @@ import { getCart, updateCart } from "../utils/storage";
 interface CartContextType {
   items: CartItem[];
   checkedItems: CartItem[];
-  addToCart: (product: Product, size: string) => Promise<void>;
+  addToCart: (product: Product, size: string, quantity?: number) => Promise<void>;
   removeFromCart: (productId: string, size: string) => Promise<void>;
   updateQuantity: (
     productId: string,
@@ -111,7 +111,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
-  const addToCart = async (product: Product, size: string) => {
+  const addToCart = async (product: Product, size: string, quantity: number = 1) => {
     const existingItem = items.find(
       (item) => item.productId === product.id && item.size === size
     );
@@ -120,11 +120,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     if (existingItem) {
       newItems = items.map((item) =>
         item.productId === product.id && item.size === size
-          ? { ...item, quantity: item.quantity + 1 }
+          ? { ...item, quantity: item.quantity + quantity }
           : item
       );
     } else {
-      newItems = [...items, { productId: product.id, size, quantity: 1 }];
+      newItems = [...items, { productId: product.id, size, quantity }];
       // Auto-check newly added items
       const key = `${product.id}-${size}`;
       setCheckedItems(prev => ({

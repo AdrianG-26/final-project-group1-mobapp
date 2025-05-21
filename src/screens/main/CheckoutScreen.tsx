@@ -4,7 +4,7 @@ import Input from "../../components/Input";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { MainStackParamList, Order, Product } from "../../types/index";
-import { getProducts, saveOrder, getStoredValue, storeValue } from "../../utils/storage";
+import { getProducts, saveOrder, getStoredValue, storeValue, updateProductStock } from "../../utils/storage";
 import { validateEmail } from "../../utils/validation";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -222,22 +222,25 @@ const CheckoutScreen = () => {
     
     if (year.length <= 4) {
       setExpiryYear(year);
-    }
-    
-    // Validate year (current or future years)
-    if (year.length === 4) {
-      const currentYear = new Date().getFullYear();
-      const yearNum = parseInt(year, 10);
       
-      if (yearNum < currentYear) {
-        setErrors(prev => ({...prev, expiryYear: "Year cannot be in the past"}));
+      // Validate year when 4 digits are entered
+      if (year.length === 4) {
+        const yearNum = parseInt(year, 10);
+        const currentYear = new Date().getFullYear();
+        const maxYear = currentYear + 20; // 20 years into the future
+        
+        if (yearNum < currentYear) {
+          setErrors(prev => ({...prev, expiryYear: "Year cannot be in the past"}));
+        } else if (yearNum > maxYear) {
+          setErrors(prev => ({...prev, expiryYear: `Year cannot be later than ${maxYear}`}));
+        } else {
+          clearError('expiryYear');
+        }
+      } else if (year.length > 0) {
+        setErrors(prev => ({...prev, expiryYear: "Year must be 4 digits"}));
       } else {
         clearError('expiryYear');
       }
-    } else if (year.length > 0) {
-      setErrors(prev => ({...prev, expiryYear: "Year must be 4 digits"}));
-    } else {
-      clearError('expiryYear');
     }
   };
   
@@ -248,13 +251,13 @@ const CheckoutScreen = () => {
     
     if (cvvText.length <= 3) {
       setCvv(cvvText);
-    }
-    
-    // Validate CVV (3 digits)
-    if (cvvText.length > 0 && cvvText.length !== 3) {
-      setErrors(prev => ({...prev, cvv: "CVV must be 3 digits"}));
-    } else {
-      clearError('cvv');
+      
+      // Show error if CVV is not complete
+      if (cvvText.length > 0 && cvvText.length !== 3) {
+        setErrors(prev => ({...prev, cvv: "CVV must be 3 digits"}));
+      } else {
+        clearError('cvv');
+      }
     }
   };
 
@@ -363,12 +366,16 @@ const CheckoutScreen = () => {
       } else {
         const yearNum = parseInt(expiryYear, 10);
         const currentYear = new Date().getFullYear();
+        const maxYear = currentYear + 20;
+        
         if (yearNum < currentYear) {
           newErrors.expiryYear = "Year cannot be in the past";
+        } else if (yearNum > maxYear) {
+          newErrors.expiryYear = `Year cannot be later than ${maxYear}`;
         }
         
         // Check if card is expired
-        if (parseInt(expiryYear, 10) === currentYear) {
+        if (yearNum === currentYear) {
           const currentMonth = new Date().getMonth() + 1; // getMonth() is 0-based
           if (parseInt(expiryMonth, 10) < currentMonth) {
             newErrors.expiryMonth = "Card has expired";
@@ -376,7 +383,7 @@ const CheckoutScreen = () => {
         }
       }
       
-      // Validate CVV
+      // Validate CVV - just check for 3 digits
       if (!cvv) {
         newErrors.cvv = "CVV is required";
       } else if (cvv.length !== 3) {
@@ -435,7 +442,11 @@ const CheckoutScreen = () => {
         },
       };
 
+      // Save the order first
       await saveOrder(order);
+      
+      // Update product stock
+      await updateProductStock(checkedItems);
       
       // Save user data after first order
       if (isFirstTimeUser && user) {
@@ -652,8 +663,16 @@ const CheckoutScreen = () => {
                   </TouchableOpacity>
                 </View>
 
+
+                <View style={styles.sectionBreak}>
+                  <View style={styles.sectionBreakHeader}>
+                    <Icon name="credit-card-outline" size={24} color="#000" />
+                    <Text style={styles.sectionBreakTitle}>Payment Details</Text>
+                  </View>
+                </View>
+
                 {/* Payment Methods Section */}
-                <View style={styles.section}>
+                <View style={styles.paymentSection}>
                   <Text style={styles.deliveryMethodTitle}>Please select your payment method</Text>
                   
                   {/* Cash on Delivery Option */}
@@ -885,6 +904,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
   },
   headerTitle: {
     fontSize: 18,
@@ -912,6 +933,8 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 8,
     backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
   },
   addressHeader: {
     flexDirection: "row",
@@ -968,6 +991,25 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
     paddingHorizontal: 16,
+  },
+
+  sectionBreak: {
+    marginTop:15,
+    paddingVertical: 5,
+    backgroundColor: '#fff',
+  },
+  sectionBreakHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionBreakTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+  },
+  paymentSection: {
+    marginTop:20,
   },
   sectionTitle: {
     fontSize: 20,

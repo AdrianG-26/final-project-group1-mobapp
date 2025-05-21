@@ -28,9 +28,10 @@ const { width } = Dimensions.get("window");
 const ProductDetailsScreen = () => {
   const navigation = useNavigation<ProductDetailsNavigationProp>();
   const route = useRoute<ProductDetailsRouteProp>();
-  const { addToCart } = useCart();
+  const { addToCart, items } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -61,7 +62,39 @@ const ProductDetailsScreen = () => {
     };
 
     loadProduct();
+
+    // Add a focus listener to reload product data when screen is focused
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadProduct();
+    });
+
+    // Cleanup subscription on unmount
+    return unsubscribe;
   }, [route.params.productId]);
+
+  // Calculate remaining stock considering items in cart
+  const getRemainingStock = (size: string) => {
+    if (!product) return 0;
+    
+    const currentStock = product.stock[size] || 0;
+    const inCart = items.find(item => item.productId === product.id && item.size === size);
+    const cartQuantity = inCart ? inCart.quantity : 0;
+    
+    // Return the actual stock minus what's in cart
+    return Math.max(0, currentStock - cartQuantity);
+  };
+
+  const handleQuantityChange = (increment: boolean) => {
+    if (!selectedSize) return;
+    
+    const remainingStock = getRemainingStock(selectedSize);
+    
+    if (increment && quantity < remainingStock) {
+      setQuantity(prev => prev + 1);
+    } else if (!increment && quantity > 1) {
+      setQuantity(prev => prev - 1);
+    }
+  };
 
   const handleAddToCart = async () => {
     if (!product || !selectedSize) {
@@ -69,8 +102,23 @@ const ProductDetailsScreen = () => {
       return;
     }
 
+    const remainingStock = getRemainingStock(selectedSize);
+    const inCart = items.find(item => item.productId === product.id && item.size === selectedSize);
+    const cartQuantity = inCart ? inCart.quantity : 0;
+
+    if (cartQuantity + quantity > remainingStock) {
+      Alert.alert(
+        "Stock Limit Reached",
+        `You can only add ${remainingStock - cartQuantity} more of this item in this size to your cart.`
+      );
+      return;
+    }
+
     try {
-      await addToCart(product, selectedSize);
+      await addToCart(product, selectedSize, quantity);
+      
+      // Reset quantity after adding to cart
+      setQuantity(1);
       
       // Reset animation value first
       toastAnim.setValue(0);
@@ -219,6 +267,36 @@ const ProductDetailsScreen = () => {
                 </TouchableOpacity>
               ))}
             </View>
+            {selectedSize && (
+              <>
+                <Text style={styles.stockCount}>
+                  {product.stock[selectedSize]} {product.stock[selectedSize] === 1 ? 'stock' : 'stocks'} remaining
+                </Text>
+                <View style={styles.quantityContainer}>
+                  <Text style={styles.quantityLabel}>Quantity:</Text>
+                  <View style={styles.quantityControls}>
+                    <TouchableOpacity 
+                      onPress={() => handleQuantityChange(false)}
+                      style={[styles.quantityButton, quantity <= 1 && styles.quantityButtonDisabled]}
+                      disabled={quantity <= 1}
+                    >
+                      <Icon name="minus" size={20} color={quantity <= 1 ? "#ccc" : "#000"} />
+                    </TouchableOpacity>
+                    <Text style={styles.quantityText}>{quantity}</Text>
+                    <TouchableOpacity 
+                      onPress={() => handleQuantityChange(true)}
+                      style={[
+                        styles.quantityButton, 
+                        quantity >= getRemainingStock(selectedSize) && styles.quantityButtonDisabled
+                      ]}
+                      disabled={quantity >= getRemainingStock(selectedSize)}
+                    >
+                      <Icon name="plus" size={20} color={quantity >= getRemainingStock(selectedSize) ? "#ccc" : "#000"} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </>
+            )}
             <TouchableOpacity
               style={[
                 styles.addToCartButton,
@@ -409,6 +487,45 @@ const styles = StyleSheet.create({
   toastMessage: {
     color: '#eee',
     fontSize: 14,
+  },
+  quantityContainer: {
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  quantityLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  quantityControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    overflow: 'hidden',
+  },
+  quantityButton: {
+    padding: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  quantityButtonDisabled: {
+    backgroundColor: '#f5f5f5',
+  },
+  quantityText: {
+    paddingHorizontal: 16,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  stockCount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'red',
+    textAlign: 'left',
+    marginBottom: 16,
   },
 });
 

@@ -12,6 +12,7 @@ import {
 interface InputProps extends TextInputProps {
   label: string;
   error?: string;
+  leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   containerStyle?: ViewStyle;
   labelStyle?: TextStyle;
@@ -22,6 +23,7 @@ interface InputProps extends TextInputProps {
 const Input: React.FC<InputProps> = ({
   label,
   error,
+  leftIcon,
   rightIcon,
   containerStyle,
   labelStyle,
@@ -41,6 +43,7 @@ const Input: React.FC<InputProps> = ({
           error && styles.errorInput,
         ]}
       >
+        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         <TextInput
           style={[styles.input, inputStyle]}
           placeholderTextColor="#999"
@@ -90,6 +93,10 @@ const styles = StyleSheet.create({
     color: "#ff3b30",
     fontSize: 14,
     marginTop: 4,
+  },
+  leftIcon: {
+    paddingHorizontal: 10,
+    justifyContent: "center",
   },
   rightIcon: {
     paddingHorizontal: 10,
