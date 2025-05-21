@@ -55,6 +55,8 @@ export interface Order {
     zipCode: string;
     phone: string;
   };
+  cancellationReason?: string;
+  canceledAt?: string;
 }
 
 export interface OnboardingSlide {

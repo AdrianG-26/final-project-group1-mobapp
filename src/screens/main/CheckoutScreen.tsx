@@ -302,6 +302,38 @@ const CheckoutScreen = () => {
     }
   }, []);
 
+  // Load saved payment data if available
+  useEffect(() => {
+    if (user) {
+      loadSavedPaymentMethod();
+    }
+  }, [user]);
+
+  const loadSavedPaymentMethod = async () => {
+    try {
+      if (user) {
+        const storedCardNumber = await getStoredValue(`user_${user.id}_cardNumber`);
+        const storedCardHolder = await getStoredValue(`user_${user.id}_cardHolderName`);
+        const storedExpiryMonth = await getStoredValue(`user_${user.id}_expiryMonth`);
+        const storedExpiryYear = await getStoredValue(`user_${user.id}_expiryYear`);
+        
+        if (storedCardNumber && storedCardHolder && storedExpiryMonth && storedExpiryYear) {
+          // Update the payment selection to credit card if saved card info exists
+          setPaymentMethod("credit-card");
+          setPaymentDetailsExpanded(true);
+          
+          // Pre-fill the payment form
+          setCardNumber(storedCardNumber);
+          setCardHolderName(storedCardHolder);
+          setExpiryMonth(storedExpiryMonth);
+          setExpiryYear(storedExpiryYear);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading saved payment method:", error);
+    }
+  };
+
   const loadProducts = async () => {
     try {
       const loadedProducts = await getProducts();
@@ -321,12 +353,24 @@ const CheckoutScreen = () => {
         const isFirst = savedUserData !== 'true';
         setIsFirstTimeUser(isFirst);
         
-        // If not first time, get their saved info
+        // For returning users, get their saved info
         if (!isFirst) {
           const savedPhone = await getStoredValue(`user_${user.id}_phone`);
           const savedAddress = await getStoredValue(`user_${user.id}_address`);
+          
+          // Pre-fill their previous data if available
           if (savedPhone) setPhone(savedPhone);
           if (savedAddress) setAddress(savedAddress);
+          
+          // For returning users with saved info, keep the address section collapsed by default
+          if (savedPhone && savedAddress) {
+            setAddressDetailsExpanded(false);
+          } else {
+            setAddressDetailsExpanded(true); // Expand if some info is missing
+          }
+        } else {
+          // For first-time users, expand the address section
+          setAddressDetailsExpanded(true);
         }
       }
     } catch (error) {
@@ -426,15 +470,35 @@ const CheckoutScreen = () => {
   };
 
   const handlePlaceOrder = async () => {
-    try {
-      setProcessing(true);
-
-      // Validate all fields are filled
-      if (!validateForm()) {
-        setProcessing(false);
-        return;
+    if (!validateForm()) {
+      // If address or phone are missing, expand the address details
+      if (!address || !phone) {
+        setAddressDetailsExpanded(true);
+        
+        // Show more specific toast message for returning users
+        if (!isFirstTimeUser) {
+          Toast.show({
+            type: 'error',
+            text1: 'Required Information Missing',
+            text2: 'Phone number and address are required to place an order.',
+            visibilityTime: 3000,
+            topOffset: 50
+          });
+        }
+        
+        // Allow time for the expansion to happen before scrolling
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({
+            y: 0,
+            animated: true
+          });
+        }, 100);
       }
+      return;
+    }
 
+    setProcessing(true);
+    try {
       // Get products for stock validation
       const products = await getProducts();
 
@@ -482,28 +546,43 @@ const CheckoutScreen = () => {
       // Save order
       await saveOrder(order);
 
+      // Save user data for all users (always save the latest phone and address used)
+      if (user) {
+        await storeValue(`user_${user.id}_hasPlacedOrder`, 'true');
+        await storeValue(`user_${user.id}_phone`, phone);
+        await storeValue(`user_${user.id}_address`, address);
+      }
+
       // Clear checked items from cart
       await removeCheckedItems();
 
-      // Show success message
-      Alert.alert(
-        "Success",
-        "Your order has been placed successfully!",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              navigation.navigate("OrderHistory");
-            },
-          },
-        ]
-      );
+      // Show toast notification instead of Alert with clickable behavior
+      Toast.show({
+        type: 'success',
+        text1: 'Order Placed Successfully',
+        text2: deliveryMethod === 'click-collect' 
+          ? `Pick up available on ${deliveryDates.clickCollect}`
+          : `Delivery expected by ${deliveryDates.homeDelivery}`,
+        visibilityTime: 4000,
+        topOffset: 50,
+        onPress: () => {
+          // Navigate to OrderHistory when toast is clicked
+          navigation.navigate("OrderHistory");
+        }
+      });
+
+      // Navigate to HomeScreen
+      navigation.navigate("HomeScreen");
     } catch (error) {
       console.error("Error placing order:", error);
-      Alert.alert(
-        "Error",
-        "There was an error placing your order. Please try again."
-      );
+      
+      // Show error toast instead of Alert
+      Toast.show({
+        type: 'error',
+        text1: 'Order Failed',
+        text2: 'There was an error placing your order. Please try again.',
+        visibilityTime: 4000,
+      });
     } finally {
       setProcessing(false);
     }
@@ -565,9 +644,17 @@ const CheckoutScreen = () => {
                     onPress={() => setAddressDetailsExpanded(true)}
                   >
                     <Text style={styles.addressName}>{fullName || "Enter your name"}</Text>
-                    <Text style={styles.addressDetail}>
-                      {address || (isFirstTimeUser ? "Enter your address" : "Click to expand")}
-                    </Text>
+                    {!isFirstTimeUser && phone && address ? (
+                      // Show saved address for returning users
+                      <View>
+                        <Text style={styles.addressDetail}>{address}</Text>
+                        <Text style={styles.addressDetail}>Phone: {phone}</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.addressDetail}>
+                        {address || "Enter your address"}
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 )}
                 
@@ -591,21 +678,51 @@ const CheckoutScreen = () => {
                       editable={false}
                       inputStyle={styles.nonEditableInput}
                     />
-                    <Input
-                      label="Phone Number"
-                      value={phone}
-                      onChangeText={handlePhoneChange}
-                      keyboardType="phone-pad"
-                      error={errors.phone}
-                      containerStyle={{...styles.inputContainer}}
-                    />
-                    <Input
-                      label="Address"
-                      value={address}
-                      onChangeText={handleAddressChange}
-                      error={errors.address}
-                      containerStyle={{...styles.inputContainer}}
-                    />
+                    <View style={styles.savedFieldContainer}>
+                      <Input
+                        label="Phone Number"
+                        value={phone}
+                        onChangeText={handlePhoneChange}
+                        keyboardType="phone-pad"
+                        error={errors.phone}
+                        containerStyle={{...styles.inputContainer, flex: 1}}
+                        placeholder={isFirstTimeUser ? "Enter your phone number" : "Your saved phone number"}
+                      />
+                      {!isFirstTimeUser && phone && (
+                        <TouchableOpacity 
+                          style={styles.editButton}
+                          onPress={() => {
+                            // Clear the phone to allow editing
+                            setPhone('');
+                            // Focus on the input (would require ref which we'll skip for now)
+                          }}
+                        >
+                          <Icon name="pencil" size={20} color="#000" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <View style={styles.savedFieldContainer}>
+                      <Input
+                        label="Address"
+                        value={address}
+                        onChangeText={handleAddressChange}
+                        error={errors.address}
+                        containerStyle={{...styles.inputContainer, flex: 1}}
+                        placeholder={isFirstTimeUser ? "Enter your address" : "Your saved address"}
+                      />
+                      {!isFirstTimeUser && address && (
+                        <TouchableOpacity 
+                          style={styles.editButton}
+                          onPress={() => {
+                            // Clear the address to allow editing
+                            setAddress('');
+                            // Focus on the input (would require ref which we'll skip for now)
+                          }}
+                        >
+                          <Icon name="pencil" size={20} color="#000" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                 )}
               </View>
@@ -804,6 +921,7 @@ const CheckoutScreen = () => {
                               placeholder="123"
                               keyboardType="numeric"
                               maxLength={3}
+                              secureTextEntry
                               error={errors.cvv}
                               containerStyle={{ marginBottom: 0 }}
                               leftIcon={<Icon name="lock-outline" size={20} color="#666" />}
@@ -1234,6 +1352,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666",
     marginLeft: 8,
+  },
+  savedFieldContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  editButton: {
+    padding: 4,
   },
 });
 

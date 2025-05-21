@@ -270,13 +270,38 @@ export const hasSeenOnboarding = async (): Promise<boolean> => {
   }
 };
 
-// Add a getOrder function to fetch a single order by ID
-export const getOrder = async (orderId: string): Promise<any> => {
+// Function to get a specific order by ID
+export const getOrder = async (orderId: string): Promise<Order> => {
   try {
     const orders = await getOrders();
-    return orders.find((order) => order.id === orderId) || null;
+    const order = orders.find(o => o.id === orderId);
+    if (!order) {
+      throw new Error(`Order with ID ${orderId} not found`);
+    }
+    return order;
   } catch (error) {
     console.error("Error getting order:", error);
+    throw error;
+  }
+};
+
+// Function to update an existing order
+export const updateOrder = async (updatedOrder: Order): Promise<void> => {
+  try {
+    const orders = await getOrders();
+    const orderIndex = orders.findIndex(o => o.id === updatedOrder.id);
+    
+    if (orderIndex === -1) {
+      throw new Error(`Order with ID ${updatedOrder.id} not found`);
+    }
+    
+    // Update the order
+    orders[orderIndex] = updatedOrder;
+    
+    // Save the updated orders array
+    await AsyncStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+  } catch (error) {
+    console.error("Error updating order:", error);
     throw error;
   }
 };
