@@ -91,4 +91,5 @@ export type MainStackParamList = {
   AdminDashboard: undefined;
   UserManagement: undefined;
   Auth: undefined;
+  PersonalInfo: undefined;
 };

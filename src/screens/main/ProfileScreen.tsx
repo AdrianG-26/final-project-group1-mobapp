@@ -88,7 +88,9 @@ const ProfileScreen = () => {
       icon: "account-outline",
       title: "Personal Information",
       onPress: () => {
-        // Navigate to personal information screen
+        navigation.navigate("ProfileTab", {
+          screen: "PersonalInfo"
+        });
       },
     },
     {

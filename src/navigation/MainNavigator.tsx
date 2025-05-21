@@ -11,7 +11,7 @@ import OrderHistoryScreen from "../screens/main/OrderHistoryScreen";
 import OrderDetailsScreen from "../screens/main/OrderDetailsScreen";
 import ProductDetailsScreen from "../screens/main/ProductDetailsScreen";
 import ProfileScreen from "../screens/main/ProfileScreen";
-
+import PersonalInfoScreen from "../screens/main/PersonalInfoScreen";
 const Stack = createNativeStackNavigator<MainStackParamList>();
 const Tab = createBottomTabNavigator();
 
@@ -77,6 +77,7 @@ const MainNavigator = () => {
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
       <Stack.Screen name="Profile" component={AdminDashboardScreen} />
       <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
+      <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
     </Stack.Navigator>
   );
 };

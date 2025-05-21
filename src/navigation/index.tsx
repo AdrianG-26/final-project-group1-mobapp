@@ -19,6 +19,7 @@ import HomeScreen from "../screens/main/HomeScreen";
 import OrderHistoryScreen from "../screens/main/OrderHistoryScreen";
 import ProductDetailsScreen from "../screens/main/ProductDetailsScreen";
 import ProfileScreen from "../screens/main/ProfileScreen";
+import PersonalInfoScreen from "../screens/main/PersonalInfoScreen";
 
 // Admin Screens
 import UserManagementScreen from "../screens/admin/UserManagementScreen";
@@ -102,6 +103,7 @@ const ProfileStackScreen = () => {
       }}
     >
       <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} />
+      <ProfileStack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
     </ProfileStack.Navigator>
   );
 };
