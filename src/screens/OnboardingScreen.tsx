@@ -19,23 +19,22 @@ const { width } = Dimensions.get("window");
 const slides = [
   {
     id: "1",
-    image: "https://placehold.co/400x300/000000/FFFFFF/png?text=Welcome",
-    title: "Welcome to ShoeStore",
-    description:
-      "Your one-stop shop for the latest and greatest in footwear fashion.",
+    image: require('../../assets/slide1.webp'),
+    title: "Start your journey with",
+    titleLogo: true,
+    description: " ",
   },
   {
     id: "2",
-    image: "https://placehold.co/400x300/000000/FFFFFF/png?text=Discover",
-    title: "Discover Your Style",
-    description:
-      "Browse through our extensive collection of shoes for every occasion.",
+    image: require('../../assets/slide2.avif'),
+    title: "Step into your style",
+    description: "Discover the perfect pair that defines you.",
   },
   {
     id: "3",
-    image: "https://placehold.co/400x300/000000/FFFFFF/png?text=Shop",
-    title: "Shop with Confidence",
-    description: "Enjoy secure payments and fast delivery to your doorstep.",
+    image: require('../../assets/slide3.jpg'),
+    title: "Perform at your peak",
+    description: "Shoes for any sports who demand excellence in every step.",
   },
 ];
 
@@ -62,8 +61,22 @@ const OnboardingScreen = () => {
   const renderSlide = ({ item }: { item: (typeof slides)[0] }) => {
     return (
       <View style={styles.slide}>
-        <Image source={{ uri: item.image }} style={styles.image} />
-        <Text style={styles.title}>{item.title}</Text>
+        <View style={styles.imageContainer}>
+          <Image 
+            source={item.image} 
+            style={styles.image}
+            resizeMethod="resize"
+          />
+        </View>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>{item.title}</Text>
+          {item.titleLogo && (
+            <Image 
+              source={require('../../assets/shoepapi_logo.png')} 
+              style={styles.titleLogo}
+            />
+          )}
+        </View>
         <Text style={styles.description}>{item.description}</Text>
       </View>
     );
@@ -117,30 +130,46 @@ const OnboardingScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
   slide: {
     width,
+    height: '100%',
     alignItems: "center",
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 140,
+  },
+  imageContainer: {
+    width: 300,
+    height: 300,
+    marginBottom: 40,
+    position: 'relative',
   },
   image: {
-    width: width * 0.8,
-    height: width * 0.8,
-    resizeMode: "contain",
-    marginBottom: 40,
+    width: '100%',
+    height: '100%',
+    resizeMode: "cover",
+    borderRadius: 25,
+    backgroundColor: '#f5f5f5',
+  },
+  titleContainer: {
+    width: '100%',
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: "bold",
     color: "#000",
-    marginBottom: 10,
-    textAlign: "center",
+    textAlign: "left",
+    lineHeight: 38,
   },
   description: {
     fontSize: 16,
     color: "#666",
-    textAlign: "center",
+    textAlign: "left",
+    lineHeight: 24,
+    width: '100%',
     paddingHorizontal: 20,
   },
   dotsContainer: {
@@ -182,6 +211,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  titleLogo: {
+    width: '100%',
+    height: 60,
+    resizeMode: 'center',
   },
 });
 
