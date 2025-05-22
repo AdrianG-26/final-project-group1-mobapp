@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Order, User, Product, CartItem } from "../types/index";
 import { sampleProducts } from "./sampleData";
+import { syncProducts } from './productSync';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -23,6 +24,13 @@ export const initializeSampleData = async (): Promise<void> => {
   } catch (error) {
     console.error("Error initializing sample data:", error);
   }
+};
+
+// Function to sync sample products in memory
+const syncSampleProducts = (products: Product[]) => {
+  // Clear the array and add new products
+  sampleProducts.length = 0;
+  sampleProducts.push(...products);
 };
 
 // User operations
@@ -147,6 +155,7 @@ export const saveProduct = async (product: Product): Promise<void> => {
     const products = await getProducts();
     products.push(product);
     await AsyncStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    syncSampleProducts(products);
   } catch (error) {
     console.error("Error saving product:", error);
     throw error;
@@ -157,7 +166,9 @@ export const getProducts = async (): Promise<Product[]> => {
   try {
     const storedProducts = await AsyncStorage.getItem(STORAGE_KEYS.PRODUCTS);
     if (storedProducts) {
-      return JSON.parse(storedProducts);
+      const products = JSON.parse(storedProducts);
+      syncSampleProducts(products);
+      return products;
     }
     // If no stored products, initialize with sample data
     await AsyncStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(sampleProducts));
@@ -174,10 +185,8 @@ export const updateProduct = async (product: Product): Promise<void> => {
     const index = products.findIndex((p) => p.id === product.id);
     if (index !== -1) {
       products[index] = product;
-      await AsyncStorage.setItem(
-        STORAGE_KEYS.PRODUCTS,
-        JSON.stringify(products)
-      );
+      await AsyncStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      syncSampleProducts(products);
     }
   } catch (error) {
     console.error("Error updating product:", error);
@@ -189,10 +198,8 @@ export const deleteProduct = async (productId: string): Promise<void> => {
   try {
     const products = await getProducts();
     const filteredProducts = products.filter((p) => p.id !== productId);
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.PRODUCTS,
-      JSON.stringify(filteredProducts)
-    );
+    await AsyncStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filteredProducts));
+    syncSampleProducts(filteredProducts);
   } catch (error) {
     console.error("Error deleting product:", error);
     throw error;
@@ -344,5 +351,15 @@ export const updateProductStock = async (items: CartItem[], retryCount = 3): Pro
     }
     
     throw error;
+  }
+};
+
+export const getProduct = async (productId: string): Promise<Product | null> => {
+  try {
+    const products = await getProducts();
+    return products.find((p) => p.id === productId) || null;
+  } catch (error) {
+    console.error("Error getting product:", error);
+    return null;
   }
 };

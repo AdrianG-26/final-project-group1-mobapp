@@ -69,6 +69,9 @@ export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
   UserManagement: undefined;
+  ProductManagement: undefined;
+  AddProduct: undefined;
+  EditProduct: { productId: string };
 };
 
 export type AuthStackParamList = {
@@ -92,4 +95,6 @@ export type MainStackParamList = {
   UserManagement: undefined;
   Auth: undefined;
   PersonalInfo: undefined;
+  EditProduct: { productId: string };
+  AddProduct: undefined;
 };

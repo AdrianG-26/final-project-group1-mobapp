@@ -6,7 +6,9 @@ import {
   Text,
   TouchableOpacity,
   View,
+  StatusBar,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { User } from "../../types/index";
@@ -127,8 +129,15 @@ const UserManagementScreen = ({ navigation }: UserManagementScreenProps) => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={24} color="#000" />
+        </TouchableOpacity>
         <Text style={styles.title}>User Management</Text>
         <TouchableOpacity style={styles.refreshButton} onPress={loadUsers}>
           <Icon name="refresh" size={24} color="#000" />
@@ -143,7 +152,7 @@ const UserManagementScreen = ({ navigation }: UserManagementScreenProps) => {
         refreshing={loading}
         onRefresh={loadUsers}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -161,9 +170,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
+  backButton: {
+    padding: 8,
+  },
   title: {
     fontSize: 20,
     fontWeight: "bold",
+    flex: 1,
+    textAlign: 'center',
+    marginRight: 40, // To offset the back button and keep title centered
   },
   refreshButton: {
     padding: 8,

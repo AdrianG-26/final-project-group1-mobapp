@@ -11,6 +11,7 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -31,6 +32,7 @@ const HomeScreen = () => {
   const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeFilters, setActiveFilters] = useState<any>({
     sortBy: '',
     discounts: [],
@@ -53,6 +55,12 @@ const HomeScreen = () => {
       console.error("Failed to load products:", error);
     }
   };
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await loadProducts();
+    setRefreshing(false);
+  }, []);
 
   const searchProducts = (query: string) => {
     setSearchInput(query);
@@ -178,6 +186,9 @@ const HomeScreen = () => {
           contentContainerStyle={styles.productList}
           columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>No products found</Text>

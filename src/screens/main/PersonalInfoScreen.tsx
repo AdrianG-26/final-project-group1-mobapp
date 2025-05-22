@@ -17,6 +17,12 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useAuth } from "../../context/AuthContext";
 import Button from "../../components/Button";
 import * as ImagePicker from 'expo-image-picker';
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { MainStackParamList } from "../../types";
+
+type PersonalInfoScreenProps = {
+  navigation: NativeStackNavigationProp<MainStackParamList>;
+};
 
 interface ValidationErrors {
   name?: string;
@@ -32,10 +38,11 @@ interface FieldChanges {
   dob?: boolean;
 }
 
-const PersonalInfoScreen = () => {
+const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [showImagePreview, setShowImagePreview] = useState(false);
   const [editedInfo, setEditedInfo] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -106,9 +113,15 @@ const PersonalInfoScreen = () => {
       case 'name':
         if (!value) return undefined;
         if (value.length < 2) return 'Name must be at least 2 characters';
+        if (value.length > 30) return 'Name must not exceed 30 characters';
         break;
     }
     return undefined;
+  };
+
+  const isSaveDisabled = () => {
+    if (!editedInfo.name || !editedInfo.phone) return true;
+    return editedInfo.name.length < 2 || editedInfo.name.length > 30 || editedInfo.phone.length !== 11;
   };
 
   const handleEditProfile = () => {
@@ -280,19 +293,32 @@ const PersonalInfoScreen = () => {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-left" size={24} color="#000" />
+            </TouchableOpacity>
             <View style={styles.avatarWrapper}>
               {profileImage ? (
-                <Image 
-                  source={{ uri: profileImage }} 
-                  style={styles.profileImage}
-                  resizeMode="contain"
-                />
+                <TouchableOpacity onPress={() => setShowImagePreview(true)}>
+                  <Image 
+                    source={{ uri: profileImage }} 
+                    style={styles.profileImage}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
               ) : (
                 <Icon name="account-circle" size={90} color="#222" />
               )}
-              <TouchableOpacity style={styles.avatarEditBtn} onPress={pickImage}>
-                <Icon name="camera" size={22} color="#fff" />
-              </TouchableOpacity>
+              {profileImage && (
+                <TouchableOpacity 
+                  style={styles.avatarEditBtn} 
+                  onPress={() => setShowImagePreview(true)}
+                >
+                  <Icon name="magnify" size={22} color="#fff" />
+                </TouchableOpacity>
+              )}
             </View>
             <Text style={styles.name}>{editedInfo.name || "Full Name"}</Text>
             <View style={styles.actionRow}>
@@ -331,7 +357,9 @@ const PersonalInfoScreen = () => {
                     placeholderTextColor="#888"
                   />
                 ) : (
-                  <Text style={styles.infoValue}>{editedInfo.name || "Not set"}</Text>
+                  <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail">
+                    {editedInfo.name || "Not set"}
+                  </Text>
                 )}
               </View>
             </View>
@@ -349,16 +377,18 @@ const PersonalInfoScreen = () => {
               <View style={styles.infoValueCol}>
                 {isEditing ? (
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, styles.disabledInput]}
                     value={editedInfo.email}
-                    onChangeText={(value) => handleFieldChange("email", value)}
+                    editable={false}
                     placeholder="Enter your email"
                     placeholderTextColor="#888"
                     keyboardType="email-address"
                     autoCapitalize="none"
                   />
                 ) : (
-                  <Text style={styles.infoValue}>{editedInfo.email || "Not set"}</Text>
+                  <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail">
+                    {editedInfo.email || "Not set"}
+                  </Text>
                 )}
               </View>
             </View>
@@ -366,7 +396,7 @@ const PersonalInfoScreen = () => {
               <Text style={styles.errorText}>{validationErrors.email}</Text>
             )}
             {isEditing && fieldChanges.email === false && editedInfo.email && (
-              <Text style={styles.guideText}>No changes made to email</Text>
+              <Text style={styles.guideText}>Email is not editable</Text>
             )}
 
             <View style={styles.infoRow}>
@@ -431,7 +461,8 @@ const PersonalInfoScreen = () => {
                 onPress={handleSave}
                 variant="primary"
                 size="medium"
-                style={styles.saveBtn}
+                style={isSaveDisabled() ? styles.disabledButton : styles.saveBtn}
+                disabled={isSaveDisabled()}
               />
               <Button
                 title="Cancel"
@@ -445,6 +476,28 @@ const PersonalInfoScreen = () => {
         </View>
       </TouchableWithoutFeedback>
       {renderDatePicker()}
+      
+      {/* Image Preview Modal */}
+      <Modal
+        visible={showImagePreview}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImagePreview(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowImagePreview(false)}
+        >
+          <View style={styles.imagePreviewContainer}>
+            <Image 
+              source={{ uri: profileImage || '' }} 
+              style={styles.previewImage}
+              resizeMode="contain"
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -460,17 +513,23 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    paddingTop: 50,
-    paddingBottom: 32   ,
+    paddingTop: 60,
+    paddingBottom: 40,
     backgroundColor: "#fff",
+  },
+  backButton: {
+    position: 'absolute',
+    left: 16,
+    top: 20,
+    padding: 8,
+    zIndex: 1,
   },
   avatarWrapper: {
     position: "relative",
-    marginBottom: 16,
   },
   profileImage: {
-    width: 180,
-    height: 180,
+    width: 90,
+    height: 90,
     borderRadius: 45,
     marginTop: 20,
   },
@@ -488,7 +547,8 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     color: "#222",
-    marginBottom: 30,
+    marginBottom: 20,
+    marginTop:10,
   },
   actionRow: {
     flexDirection: "row",
@@ -496,12 +556,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   uploadBtn: {
+    marginTop:10,
     minWidth: 140,
     backgroundColor: '#222',
+    height:43,
   },
   editBtn: {
-    minWidth: 140,
+    marginTop:10,
+    minWidth: 160,
     backgroundColor: '#222',
+    height:43,
   },
   card: {
     backgroundColor: "#f5f5f7",
@@ -539,6 +603,7 @@ const styles = StyleSheet.create({
   infoValueCol: {
     flex: 2,
     justifyContent: "flex-end",
+    overflow: 'hidden',
   },
   infoLabel: {
     fontSize: 15,
@@ -549,6 +614,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#222",
     textAlign: "right",
+    flexShrink: 1,
   },
   input: {
     fontSize: 15,
@@ -565,12 +631,12 @@ const styles = StyleSheet.create({
   saveBtn: {
     minWidth: 160,
     backgroundColor: '#4CAF50',
-    marginTop:10
+    marginTop: 10
   },
   cancelBtn: {
     minWidth: 160,
     backgroundColor: '#f44336',
-    marginTop:10
+    marginTop: 10,
   },
   errorText: {
     color: '#f44336',
@@ -581,7 +647,8 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: '#cccccc',
-    minWidth: 140,
+    minWidth: 160,
+    marginTop: 10
   },
   guideText: {
     color: '#666',
@@ -590,12 +657,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginLeft: 16,
     fontStyle: 'italic',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   datePickerContainer: {
     backgroundColor: '#fff',
@@ -649,6 +710,26 @@ const styles = StyleSheet.create({
   dateInput: {
     flex: 1,
     alignItems: 'flex-end',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePreviewContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  disabledInput: {
+    color: '#888',
+    opacity: 0.7,
   },
 });
 

@@ -138,6 +138,14 @@ const ProfileScreen = () => {
         rootNavigation.navigate("UserManagement");
       },
     });
+
+    menuItems.push({
+      icon: "package-variant",
+      title: "Product Management",
+      onPress: () => {
+        rootNavigation.navigate("ProductManagement");
+      },
+    });
   }
 
   // Temporary menu item for making a user admin

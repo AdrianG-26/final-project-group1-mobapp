@@ -23,6 +23,9 @@ import PersonalInfoScreen from "../screens/main/PersonalInfoScreen";
 
 // Admin Screens
 import UserManagementScreen from "../screens/admin/UserManagementScreen";
+import ProductManagementScreen from "../screens/admin/ProductManagementScreen";
+import AddProduct from "../screens/admin/AddProduct";
+import EditProduct from "../screens/admin/EditProduct";
 
 // Types
 import {
@@ -158,6 +161,21 @@ const Navigation = () => {
           name="UserManagement"
           component={UserManagementScreen}
           options={{ title: "User Management" }}
+        />
+        <Stack.Screen
+          name="ProductManagement"
+          component={ProductManagementScreen}
+          options={{ title: "Product Management" }}
+        />
+        <Stack.Screen
+          name="AddProduct"
+          component={AddProduct}
+          options={{ title: "Add Product" }}
+        />
+        <Stack.Screen
+          name="EditProduct"
+          component={EditProduct}
+          options={{ title: "Edit Product" }}
         />
       </Stack.Navigator>
     </NavigationContainer>
