@@ -1,24 +1,27 @@
-import React, { useState, useEffect } from "react";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import * as ImagePicker from "expo-image-picker";
+import React, { useEffect, useState } from "react";
 import {
+  Alert,
+  Image,
+  Keyboard,
+  Modal,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  StatusBar,
-  TextInput,
-  Image,
-  Modal,
-  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { useAuth } from "../../context/AuthContext";
 import Button from "../../components/Button";
-import * as ImagePicker from 'expo-image-picker';
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useAuth } from "../../context/AuthContext";
 import { MainStackParamList } from "../../types";
+import { User } from "../../types/index";
+import { updateUser } from "../../utils/storage";
 
 type PersonalInfoScreenProps = {
   navigation: NativeStackNavigationProp<MainStackParamList>;
@@ -39,23 +42,25 @@ interface FieldChanges {
 }
 
 const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
-  const { user } = useAuth();
+  const { user, reloadUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [editedInfo, setEditedInfo] = useState({
     name: user?.name || "",
     email: user?.email || "",
-    phone: "",
-    dob: "",
+    phone: user?.phone || "",
+    dob: user?.dob || "",
   });
   const [originalInfo, setOriginalInfo] = useState({
     name: user?.name || "",
     email: user?.email || "",
-    phone: "",
-    dob: "",
+    phone: user?.phone || "",
+    dob: user?.dob || "",
   });
-  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
+    {}
+  );
   const [fieldChanges, setFieldChanges] = useState<FieldChanges>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -64,14 +69,29 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
   const [selectedYear, setSelectedYear] = useState("");
 
   const months = [
-    "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"
+    "01",
+    "02",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "09",
+    "10",
+    "11",
+    "12",
   ];
-  const days = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
-  const years = Array.from({ length: 100 }, (_, i) => String(new Date().getFullYear() - i));
+  const days = Array.from({ length: 31 }, (_, i) =>
+    String(i + 1).padStart(2, "0")
+  );
+  const years = Array.from({ length: 100 }, (_, i) =>
+    String(new Date().getFullYear() - i)
+  );
 
   useEffect(() => {
     if (editedInfo.dob) {
-      const [month, day, year] = editedInfo.dob.split('/');
+      const [month, day, year] = editedInfo.dob.split("/");
       setSelectedMonth(month);
       setSelectedDay(day);
       setSelectedYear(year);
@@ -96,24 +116,27 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
 
   const validateField = (field: string, value: string): string | undefined => {
     switch (field) {
-      case 'email':
+      case "email":
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!value) return undefined;
-        if (!emailRegex.test(value)) return 'Please enter a valid email address';
+        if (!emailRegex.test(value))
+          return "Please enter a valid email address";
         break;
-      case 'phone':
+      case "phone":
         const phoneRegex = /^\d{11}$/;
         if (!value) return undefined;
-        if (!phoneRegex.test(value)) return 'Phone number must be exactly 11 digits';
+        if (!phoneRegex.test(value))
+          return "Phone number must be exactly 11 digits";
         break;
-      case 'dob':
+      case "dob":
         if (!value) return undefined;
-        if (!selectedMonth || !selectedDay || !selectedYear) return 'Please select a complete date';
+        if (!selectedMonth || !selectedDay || !selectedYear)
+          return "Please select a complete date";
         break;
-      case 'name':
+      case "name":
         if (!value) return undefined;
-        if (value.length < 2) return 'Name must be at least 2 characters';
-        if (value.length > 30) return 'Name must not exceed 30 characters';
+        if (value.length < 2) return "Name must be at least 2 characters";
+        if (value.length > 30) return "Name must not exceed 30 characters";
         break;
     }
     return undefined;
@@ -121,7 +144,11 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
 
   const isSaveDisabled = () => {
     if (!editedInfo.name || !editedInfo.phone) return true;
-    return editedInfo.name.length < 2 || editedInfo.name.length > 30 || editedInfo.phone.length !== 11;
+    return (
+      editedInfo.name.length < 2 ||
+      editedInfo.name.length > 30 ||
+      editedInfo.phone.length !== 11
+    );
   };
 
   const handleEditProfile = () => {
@@ -137,11 +164,14 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
     setIsEditing(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validate all fields
     const errors: ValidationErrors = {};
     Object.keys(editedInfo).forEach((field) => {
-      const error = validateField(field, editedInfo[field as keyof typeof editedInfo]);
+      const error = validateField(
+        field,
+        editedInfo[field as keyof typeof editedInfo]
+      );
       if (error) errors[field as keyof ValidationErrors] = error;
     });
 
@@ -150,19 +180,58 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
       return;
     }
 
-    // TODO: Implement actual API call to save changes
-    console.log("Saving changes:", editedInfo);
-    setOriginalInfo({ ...editedInfo });
-    setValidationErrors({});
-    setFieldChanges({});
-    setIsEditing(false);
+    try {
+      if (!user) {
+        Alert.alert("Error", "User not found");
+        return;
+      }
+
+      // Create updated user object with all required fields
+      const updatedUser: User = {
+        id: user.id,
+        name: editedInfo.name,
+        email: user.email,
+        password: user.password,
+        phone: editedInfo.phone || undefined,
+        dob: editedInfo.dob || undefined,
+        isAdmin: user.isAdmin,
+      };
+
+      // Save changes
+      const success = await updateUser(updatedUser);
+
+      if (success) {
+        await reloadUser();
+        setEditedInfo({
+          name: user?.name || "",
+          email: user?.email || "",
+          phone: user?.phone || "",
+          dob: user?.dob || "",
+        });
+        setOriginalInfo({
+          name: user?.name || "",
+          email: user?.email || "",
+          phone: user?.phone || "",
+          dob: user?.dob || "",
+        });
+        setValidationErrors({});
+        setFieldChanges({});
+        setIsEditing(false);
+        Alert.alert("Success", "Profile updated successfully");
+      } else {
+        Alert.alert("Error", "Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      Alert.alert("Error", "An error occurred while saving your profile");
+    }
   };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      alert('Sorry, we need camera roll permissions to make this work!');
+
+    if (status !== "granted") {
+      alert("Sorry, we need camera roll permissions to make this work!");
       return;
     }
 
@@ -180,20 +249,20 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
 
   const handleFieldChange = (field: string, value: string) => {
     // Limit phone number to 11 digits
-    if (field === 'phone' && value.length > 11) {
+    if (field === "phone" && value.length > 11) {
       return;
     }
 
-    setEditedInfo(prev => ({
+    setEditedInfo((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
 
     // Validate field in real-time
     const error = validateField(field, value);
-    setValidationErrors(prev => ({
+    setValidationErrors((prev) => ({
       ...prev,
-      [field]: error
+      [field]: error,
     }));
   };
 
@@ -206,11 +275,7 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
   };
 
   const renderDatePicker = () => (
-    <Modal
-      visible={showDatePicker}
-      transparent={true}
-      animationType="slide"
-    >
+    <Modal visible={showDatePicker} transparent={true} animationType="slide">
       <View style={styles.modalOverlay}>
         <View style={styles.datePickerContainer}>
           <View style={styles.datePickerHeader}>
@@ -226,14 +291,19 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
                   key={month}
                   style={[
                     styles.datePickerItem,
-                    selectedMonth === month && styles.datePickerItemSelected
+                    selectedMonth === month && styles.datePickerItemSelected,
                   ]}
                   onPress={() => setSelectedMonth(month)}
                 >
-                  <Text style={[
-                    styles.datePickerItemText,
-                    selectedMonth === month && styles.datePickerItemTextSelected
-                  ]}>{month}</Text>
+                  <Text
+                    style={[
+                      styles.datePickerItemText,
+                      selectedMonth === month &&
+                        styles.datePickerItemTextSelected,
+                    ]}
+                  >
+                    {month}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -243,14 +313,18 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
                   key={day}
                   style={[
                     styles.datePickerItem,
-                    selectedDay === day && styles.datePickerItemSelected
+                    selectedDay === day && styles.datePickerItemSelected,
                   ]}
                   onPress={() => setSelectedDay(day)}
                 >
-                  <Text style={[
-                    styles.datePickerItemText,
-                    selectedDay === day && styles.datePickerItemTextSelected
-                  ]}>{day}</Text>
+                  <Text
+                    style={[
+                      styles.datePickerItemText,
+                      selectedDay === day && styles.datePickerItemTextSelected,
+                    ]}
+                  >
+                    {day}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -260,14 +334,19 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
                   key={year}
                   style={[
                     styles.datePickerItem,
-                    selectedYear === year && styles.datePickerItemSelected
+                    selectedYear === year && styles.datePickerItemSelected,
                   ]}
                   onPress={() => setSelectedYear(year)}
                 >
-                  <Text style={[
-                    styles.datePickerItemText,
-                    selectedYear === year && styles.datePickerItemTextSelected
-                  ]}>{year}</Text>
+                  <Text
+                    style={[
+                      styles.datePickerItemText,
+                      selectedYear === year &&
+                        styles.datePickerItemTextSelected,
+                    ]}
+                  >
+                    {year}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -293,8 +372,8 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.backButton} 
+            <TouchableOpacity
+              style={styles.backButton}
               onPress={() => navigation.goBack()}
             >
               <Icon name="arrow-left" size={24} color="#000" />
@@ -302,8 +381,8 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
             <View style={styles.avatarWrapper}>
               {profileImage ? (
                 <TouchableOpacity onPress={() => setShowImagePreview(true)}>
-                  <Image 
-                    source={{ uri: profileImage }} 
+                  <Image
+                    source={{ uri: profileImage }}
                     style={styles.profileImage}
                     resizeMode="contain"
                   />
@@ -312,8 +391,8 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
                 <Icon name="account-circle" size={90} color="#222" />
               )}
               {profileImage && (
-                <TouchableOpacity 
-                  style={styles.avatarEditBtn} 
+                <TouchableOpacity
+                  style={styles.avatarEditBtn}
                   onPress={() => setShowImagePreview(true)}
                 >
                   <Icon name="magnify" size={22} color="#fff" />
@@ -357,7 +436,11 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
                     placeholderTextColor="#888"
                   />
                 ) : (
-                  <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail">
+                  <Text
+                    style={styles.infoValue}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
                     {editedInfo.name || "Not set"}
                   </Text>
                 )}
@@ -386,7 +469,11 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
                     autoCapitalize="none"
                   />
                 ) : (
-                  <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail">
+                  <Text
+                    style={styles.infoValue}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
                     {editedInfo.email || "Not set"}
                   </Text>
                 )}
@@ -415,7 +502,9 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
                     maxLength={11}
                   />
                 ) : (
-                  <Text style={styles.infoValue}>{editedInfo.phone || "Not set"}</Text>
+                  <Text style={styles.infoValue}>
+                    {editedInfo.phone || "Not set"}
+                  </Text>
                 )}
               </View>
             </View>
@@ -441,7 +530,9 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
                     </Text>
                   </TouchableOpacity>
                 ) : (
-                  <Text style={styles.infoValue}>{editedInfo.dob || "Not set"}</Text>
+                  <Text style={styles.infoValue}>
+                    {editedInfo.dob || "Not set"}
+                  </Text>
                 )}
               </View>
             </View>
@@ -449,7 +540,9 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
               <Text style={styles.errorText}>{validationErrors.dob}</Text>
             )}
             {isEditing && fieldChanges.dob === false && editedInfo.dob && (
-              <Text style={styles.guideText}>No changes made to date of birth</Text>
+              <Text style={styles.guideText}>
+                No changes made to date of birth
+              </Text>
             )}
           </View>
 
@@ -461,7 +554,9 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
                 onPress={handleSave}
                 variant="primary"
                 size="medium"
-                style={isSaveDisabled() ? styles.disabledButton : styles.saveBtn}
+                style={
+                  isSaveDisabled() ? styles.disabledButton : styles.saveBtn
+                }
                 disabled={isSaveDisabled()}
               />
               <Button
@@ -476,7 +571,7 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
         </View>
       </TouchableWithoutFeedback>
       {renderDatePicker()}
-      
+
       {/* Image Preview Modal */}
       <Modal
         visible={showImagePreview}
@@ -484,14 +579,14 @@ const PersonalInfoScreen = ({ navigation }: PersonalInfoScreenProps) => {
         animationType="fade"
         onRequestClose={() => setShowImagePreview(false)}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowImagePreview(false)}
         >
           <View style={styles.imagePreviewContainer}>
-            <Image 
-              source={{ uri: profileImage || '' }} 
+            <Image
+              source={{ uri: profileImage || "" }}
               style={styles.previewImage}
               resizeMode="contain"
             />
@@ -518,7 +613,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   backButton: {
-    position: 'absolute',
+    position: "absolute",
     left: 16,
     top: 20,
     padding: 8,
@@ -548,7 +643,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#222",
     marginBottom: 20,
-    marginTop:10,
+    marginTop: 10,
   },
   actionRow: {
     flexDirection: "row",
@@ -556,16 +651,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   uploadBtn: {
-    marginTop:10,
+    marginTop: 10,
     minWidth: 140,
-    backgroundColor: '#222',
-    height:43,
+    backgroundColor: "#222",
+    height: 43,
   },
   editBtn: {
-    marginTop:10,
+    marginTop: 10,
     minWidth: 160,
-    backgroundColor: '#222',
-    height:43,
+    backgroundColor: "#222",
+    height: 43,
   },
   card: {
     backgroundColor: "#f5f5f7",
@@ -603,7 +698,7 @@ const styles = StyleSheet.create({
   infoValueCol: {
     flex: 2,
     justifyContent: "flex-end",
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   infoLabel: {
     fontSize: 15,
@@ -630,55 +725,55 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     minWidth: 160,
-    backgroundColor: '#4CAF50',
-    marginTop: 10
+    backgroundColor: "#4CAF50",
+    marginTop: 10,
   },
   cancelBtn: {
     minWidth: 160,
-    backgroundColor: '#f44336',
+    backgroundColor: "#f44336",
     marginTop: 10,
   },
   errorText: {
-    color: '#f44336',
+    color: "#f44336",
     fontSize: 11,
     marginTop: -20,
     marginBottom: 16,
     marginLeft: 16,
   },
   disabledButton: {
-    backgroundColor: '#cccccc',
+    backgroundColor: "#cccccc",
     minWidth: 160,
-    marginTop: 10
+    marginTop: 10,
   },
   guideText: {
-    color: '#666',
+    color: "#666",
     fontSize: 11,
     marginTop: -20,
     marginBottom: 16,
     marginLeft: 16,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   datePickerContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
-    width: '90%',
-    maxHeight: '80%',
+    width: "90%",
+    maxHeight: "80%",
     padding: 20,
   },
   datePickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
   },
   datePickerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#222',
+    fontWeight: "bold",
+    color: "#222",
   },
   datePickerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     height: 200,
   },
   datePickerColumn: {
@@ -687,48 +782,48 @@ const styles = StyleSheet.create({
   },
   datePickerItem: {
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 8,
   },
   datePickerItemSelected: {
-    backgroundColor: '#222',
+    backgroundColor: "#222",
   },
   datePickerItemText: {
     fontSize: 16,
-    color: '#222',
+    color: "#222",
   },
   datePickerItemTextSelected: {
-    color: '#fff',
+    color: "#fff",
   },
   datePickerFooter: {
     marginTop: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   confirmButton: {
     minWidth: 120,
   },
   dateInput: {
     flex: 1,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   imagePreviewContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   previewImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   disabledInput: {
-    color: '#888',
+    color: "#888",
     opacity: 0.7,
   },
 });

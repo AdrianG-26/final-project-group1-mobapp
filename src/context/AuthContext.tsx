@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User } from "../types";
+import { User } from "../types/index";
 import { getCurrentUser, getUsers, setCurrentUser } from "../utils/storage";
 
 interface AuthContextType {
@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   isAdmin: boolean;
+  reloadUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +35,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const reloadUser = async () => {
+    await loadUser();
   };
 
   const login = async (email: string, password: string) => {
@@ -97,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         login,
         logout,
         isAdmin,
+        reloadUser,
       }}
     >
       {children}

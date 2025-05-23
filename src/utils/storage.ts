@@ -453,3 +453,31 @@ export const updateUserPassword = async (
     return false;
   }
 };
+
+// Add this function to update user information
+export const updateUser = async (updatedUser: User): Promise<boolean> => {
+  try {
+    const users = await getUsers();
+    const userIndex = users.findIndex((u) => u.id === updatedUser.id);
+
+    if (userIndex !== -1) {
+      // Update the user
+      users[userIndex] = updatedUser;
+
+      // Save the updated users list
+      await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+      // If this is the current user, update the current user as well
+      const currentUser = await getCurrentUser();
+      if (currentUser && currentUser.id === updatedUser.id) {
+        await setCurrentUser(updatedUser);
+      }
+
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Error updating user:", error);
+    return false;
+  }
+};
