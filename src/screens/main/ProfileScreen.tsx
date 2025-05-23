@@ -1,26 +1,26 @@
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
-  StatusBar,
-  Modal,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
 import { MainStackParamList, RootStackParamList } from "../../types/index";
-import { getStoredValue, getUsers, makeUserAdmin, storeValue } from "../../utils/storage";
-import Button from "../../components/Button";
+import { getStoredValue, getUsers, storeValue } from "../../utils/storage";
 
 type ProfileNavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -28,30 +28,30 @@ type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 // Card validation utility functions (same as CheckoutScreen)
 const validateCardNumber = (number: string) => {
   // Remove all non-digit characters
-  const cardNumber = number.replace(/\D/g, '');
-  
+  const cardNumber = number.replace(/\D/g, "");
+
   // Check if the length is 16 digits
   if (cardNumber.length !== 16) {
     return false;
   }
-  
+
   // Luhn algorithm (credit card validation)
   let sum = 0;
   let shouldDouble = false;
-  
+
   // Loop through digits in reverse
   for (let i = cardNumber.length - 1; i >= 0; i--) {
     let digit = parseInt(cardNumber.charAt(i));
-    
+
     if (shouldDouble) {
       digit *= 2;
       if (digit > 9) digit -= 9;
     }
-    
+
     sum += digit;
     shouldDouble = !shouldDouble;
   }
-  
+
   return sum % 10 === 0;
 };
 
@@ -60,13 +60,13 @@ const ProfileScreen = () => {
   const rootNavigation = useNavigation<RootNavigationProp>();
   const { user, logout } = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
-  
+
   // Address state
   const [savedAddress, setSavedAddress] = useState<string | null>(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [address, setAddress] = useState("");
   const [addressError, setAddressError] = useState<string | null>(null);
-  
+
   // Payment method state
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -82,9 +82,32 @@ const ProfileScreen = () => {
     expiryYear?: string;
     cvv?: string;
   }>({});
-  
+
   // Keep track of which input is focused for scrolling
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+
+  // Add handleCardNumberChange function
+  const handleCardNumberChange = (text: string) => {
+    // Format card number with spaces after every 4 digits
+    const digitsOnly = text.replace(/\D/g, "");
+    let formatted = "";
+
+    for (let i = 0; i < digitsOnly.length; i++) {
+      if (i > 0 && i % 4 === 0) {
+        formatted += " ";
+      }
+      formatted += digitsOnly[i];
+    }
+
+    if (digitsOnly.length <= 16) {
+      setCardNumber(formatted);
+    }
+
+    // Clear error when user starts typing
+    if (cardErrors.cardNumber) {
+      setCardErrors({ ...cardErrors, cardNumber: undefined });
+    }
+  };
 
   // Load user data on initial mount
   useEffect(() => {
@@ -92,7 +115,7 @@ const ProfileScreen = () => {
       loadUserData();
     }
   }, [user]);
-  
+
   // Also reload data whenever the screen comes into focus
   // This ensures we capture any changes made in the checkout screen
   useFocusEffect(
@@ -103,7 +126,7 @@ const ProfileScreen = () => {
       return () => {}; // cleanup if needed
     }, [user])
   );
-  
+
   // Scroll to the focused input when keyboard appears
   useEffect(() => {
     if (focusedInput && scrollViewRef.current) {
@@ -115,287 +138,16 @@ const ProfileScreen = () => {
   }, [focusedInput]);
 
   const loadUserData = async () => {
-    if (user) {
-      try {
-        // Load address data
-        const storedAddress = await getStoredValue(`user_${user.id}_address`);
-        
-        if (storedAddress) {
-          setSavedAddress(storedAddress);
-          setAddress(storedAddress);
-        }
-        
-        // Load payment data
-        const storedCardNumber = await getStoredValue(`user_${user.id}_cardNumber`);
-        const storedCardHolder = await getStoredValue(`user_${user.id}_cardHolderName`);
-        const storedExpiryMonth = await getStoredValue(`user_${user.id}_expiryMonth`);
-        const storedExpiryYear = await getStoredValue(`user_${user.id}_expiryYear`);
-        
-        if (storedCardNumber && storedCardHolder && storedExpiryMonth && storedExpiryYear) {
-          setHasPaymentMethod(true);
-          setCardNumber(storedCardNumber);
-          setCardHolderName(storedCardHolder);
-          setExpiryMonth(storedExpiryMonth);
-          setExpiryYear(storedExpiryYear);
-        }
-      } catch (error) {
-        console.error("Error loading user data:", error);
-      }
-    }
-  };
-
-  const validateAddress = () => {
-    if (!address.trim()) {
-      setAddressError("Please enter your address");
-      return false;
-    }
-    setAddressError(null);
-    return true;
-  };
-
-  const saveAddress = async () => {
-    if (!user) return;
-    
-    if (!validateAddress()) {
-      return;
-    }
-    
     try {
-      await storeValue(`user_${user.id}_address`, address);
-      await storeValue(`user_${user.id}_hasPlacedOrder`, 'true'); // Mark as returning user
-      
+      // Load saved address
+      const address = await getStoredValue("savedAddress");
       setSavedAddress(address);
-      setShowAddressModal(false);
-      
-      Alert.alert(
-        "Success", 
-        "Your shipping address has been saved"
-      );
+
+      // Load payment method status
+      const hasPayment = await getStoredValue("hasPaymentMethod");
+      setHasPaymentMethod(hasPayment === "true");
     } catch (error) {
-      console.error("Error saving address:", error);
-      Alert.alert("Error", "Failed to save your address. Please try again.");
-    }
-  };
-
-  const validatePaymentMethod = () => {
-    const errors: {
-      cardNumber?: string;
-      cardHolderName?: string;
-      expiryMonth?: string;
-      expiryYear?: string;
-      cvv?: string;
-    } = {};
-    let isValid = true;
-    
-    // Validate card number (16 digits)
-    if (!cardNumber.trim()) {
-      errors.cardNumber = "Card number is required";
-      isValid = false;
-    } else {
-      const digitsOnly = cardNumber.replace(/\D/g, '');
-      if (digitsOnly.length !== 16) {
-        errors.cardNumber = "Card number must be 16 digits";
-        isValid = false;
-      } else if (!validateCardNumber(digitsOnly)) {
-        errors.cardNumber = "Invalid card number";
-        isValid = false;
-      }
-    }
-    
-    // Validate cardholder name
-    if (!cardHolderName.trim()) {
-      errors.cardHolderName = "Cardholder name is required";
-      isValid = false;
-    }
-    
-    // Validate month (1-12)
-    if (!expiryMonth.trim()) {
-      errors.expiryMonth = "Required";
-      isValid = false;
-    } else {
-      const monthNum = parseInt(expiryMonth, 10);
-      if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
-        errors.expiryMonth = "Month must be 1-12";
-        isValid = false;
-      }
-    }
-    
-    // Validate year (current year or later)
-    if (!expiryYear.trim()) {
-      errors.expiryYear = "Required";
-      isValid = false;
-    } else if (expiryYear.length !== 4) {
-      errors.expiryYear = "Year must be 4 digits";
-      isValid = false;
-    } else {
-      const yearNum = parseInt(expiryYear, 10);
-      const currentYear = new Date().getFullYear();
-      const maxYear = currentYear + 20; // 20 years into the future
-      
-      if (yearNum < currentYear) {
-        errors.expiryYear = "Year cannot be in the past";
-        isValid = false;
-      } else if (yearNum > maxYear) {
-        errors.expiryYear = `Year cannot be later than ${maxYear}`;
-        isValid = false;
-      }
-      
-      // Validate expiry date is not in the past
-      if (yearNum === currentYear && !errors.expiryMonth) {
-        const currentMonth = new Date().getMonth() + 1; // getMonth() returns 0-11
-        const monthNum = parseInt(expiryMonth, 10);
-        if (monthNum < currentMonth) {
-          errors.expiryMonth = "Month cannot be in the past";
-          isValid = false;
-        }
-      }
-    }
-    
-    // Validate CVV
-    if (!cvv.trim()) {
-      errors.cvv = "Required";
-      isValid = false;
-    } else if (cvv.length !== 3) {
-      errors.cvv = "CVV must be 3 digits";
-      isValid = false;
-    }
-    
-    setCardErrors(errors);
-    return isValid;
-  };
-
-  const savePaymentMethod = async () => {
-    if (!user) return;
-    
-    if (!validatePaymentMethod()) {
-      return;
-    }
-    
-    try {
-      // Store card details (consider encrypting in a real app)
-      await storeValue(`user_${user.id}_cardNumber`, cardNumber);
-      await storeValue(`user_${user.id}_cardHolderName`, cardHolderName);
-      await storeValue(`user_${user.id}_expiryMonth`, expiryMonth);
-      await storeValue(`user_${user.id}_expiryYear`, expiryYear);
-      // Don't store CVV for security reasons
-      
-      setHasPaymentMethod(true);
-      setShowPaymentModal(false);
-      
-      Alert.alert(
-        "Success", 
-        "Your payment method has been saved"
-      );
-    } catch (error) {
-      console.error("Error saving payment method:", error);
-      Alert.alert("Error", "Failed to save your payment method. Please try again.");
-    }
-  };
-
-  const clearPaymentMethod = async () => {
-    if (!user) return;
-    
-    // Ask for confirmation before clearing payment information
-    Alert.alert(
-      "Clear Payment Method",
-      "Are you sure you want to remove your saved payment method?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // Remove all payment related data
-              await Promise.all([
-                storeValue(`user_${user.id}_cardNumber`, ''),
-                storeValue(`user_${user.id}_cardHolderName`, ''),
-                storeValue(`user_${user.id}_expiryMonth`, ''),
-                storeValue(`user_${user.id}_expiryYear`, ''),
-              ]);
-              
-              // Reset state
-              setCardNumber('');
-              setCardHolderName('');
-              setExpiryMonth('');
-              setExpiryYear('');
-              setCvv('');
-              setHasPaymentMethod(false);
-              setCardErrors({});
-              
-              // Close the modal
-              setShowPaymentModal(false);
-              
-              // Show success message
-              Alert.alert(
-                "Success",
-                "Your payment method has been removed"
-              );
-            } catch (error) {
-              console.error("Error clearing payment method:", error);
-              Alert.alert("Error", "Failed to remove your payment method. Please try again.");
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const handleCardNumberChange = (text: string) => {
-    // Format card number with spaces after every 4 digits
-    const digitsOnly = text.replace(/\D/g, '');
-    let formatted = '';
-    
-    for (let i = 0; i < digitsOnly.length; i++) {
-      if (i > 0 && i % 4 === 0) {
-        formatted += ' ';
-      }
-      formatted += digitsOnly[i];
-    }
-    
-    if (digitsOnly.length <= 16) {
-      setCardNumber(formatted);
-    }
-    
-    // Clear error when user starts typing
-    if (cardErrors.cardNumber) {
-      setCardErrors({...cardErrors, cardNumber: undefined});
-    }
-  };
-
-  const viewAllUsers = async () => {
-    try {
-      const allUsers = await getUsers();
-      console.log("All Users:", JSON.stringify(allUsers, null, 2));
-      Alert.alert(
-        "Users Retrieved",
-        `Found ${allUsers.length} users. Check the console log.`
-      );
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      Alert.alert("Error", "Failed to retrieve users");
-    }
-  };
-
-  const makeAdmin = async () => {
-    try {
-      const email = "adrian_louise_galvez@dlsl.edu.ph";
-      const success = await makeUserAdmin(email);
-
-      if (success) {
-        Alert.alert(
-          "Success",
-          `User ${email} is now an admin. Please log out and log back in to see the changes.`
-        );
-      } else {
-        Alert.alert("Error", `User ${email} not found.`);
-      }
-    } catch (error) {
-      console.error("Error making user admin:", error);
-      Alert.alert("Error", "Failed to make user an admin");
+      console.error("Error loading user data:", error);
     }
   };
 
@@ -431,7 +183,7 @@ const ProfileScreen = () => {
       title: "Personal Information",
       onPress: () => {
         navigation.navigate("ProfileTab", {
-          screen: "PersonalInfo"
+          screen: "PersonalInfo",
         });
       },
     },
@@ -465,12 +217,6 @@ const ProfileScreen = () => {
     menuItems.push({
       icon: "account-group",
       title: "View All Users",
-      onPress: viewAllUsers,
-    });
-
-    menuItems.push({
-      icon: "account-cog",
-      title: "User Management",
       onPress: () => {
         rootNavigation.navigate("UserManagement");
       },
@@ -484,13 +230,6 @@ const ProfileScreen = () => {
       },
     });
   }
-
-  // Temporary menu item for making a user admin
-  menuItems.push({
-    icon: "shield-account",
-    title: "Make User Admin",
-    onPress: makeAdmin,
-  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -515,7 +254,9 @@ const ProfileScreen = () => {
                 <Icon name={item.icon} size={24} color="#000" />
                 <View style={styles.menuTextContainer}>
                   <Text style={styles.menuItemText}>{item.title}</Text>
-                  {item.subtitle && <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>}
+                  {item.subtitle && (
+                    <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
+                  )}
                 </View>
               </View>
               <Icon name="chevron-right" size={24} color="#666" />
@@ -532,231 +273,264 @@ const ProfileScreen = () => {
       {/* Address Modal */}
       <Modal
         visible={showAddressModal}
-        transparent
         animationType="slide"
+        transparent={true}
         onRequestClose={() => setShowAddressModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={{ flex: 1, justifyContent: 'flex-end' }}
-          >
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Shipping Address</Text>
-                <TouchableOpacity 
-                  onPress={() => setShowAddressModal(false)}
-                  style={styles.closeButton}
-                >
-                  <Icon name="close" size={24} color="#000" />
-                </TouchableOpacity>
-              </View>
-              
-              <ScrollView style={styles.formScrollContainer}>
-                <View style={styles.formContainer}>
-                  <Text style={styles.inputLabel}>Address</Text>
-                  <TextInput
-                    style={[
-                      styles.input, 
-                      styles.textArea,
-                      addressError ? styles.inputError : {}
-                    ]}
-                    value={address}
-                    onChangeText={(text) => {
-                      setAddress(text);
-                      if (addressError) setAddressError(null);
-                    }}
-                    placeholder="Enter your full address"
-                    multiline
-                  />
-                  {addressError && <Text style={styles.errorText}>{addressError}</Text>}
-                  
-                  <Button
-                    title="Save Address"
-                    onPress={saveAddress}
-                    style={styles.saveButton}
-                  />
-                </View>
-              </ScrollView>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Shipping Address</Text>
+              <TouchableOpacity onPress={() => setShowAddressModal(false)}>
+                <Icon name="close" size={24} color="#000" />
+              </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+
+            <ScrollView>
+              <TextInput
+                style={styles.addressInput}
+                placeholder="Enter your shipping address"
+                value={address}
+                onChangeText={(text) => {
+                  setAddress(text);
+                  setAddressError(null);
+                }}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                onFocus={() => setFocusedInput("address")}
+                onBlur={() => setFocusedInput(null)}
+              />
+
+              {addressError && (
+                <Text style={styles.errorText}>{addressError}</Text>
+              )}
+
+              <Button
+                title="Save Address"
+                onPress={async () => {
+                  if (!address.trim()) {
+                    setAddressError("Address is required");
+                    return;
+                  }
+
+                  try {
+                    await storeValue("savedAddress", address);
+                    setSavedAddress(address);
+                    setShowAddressModal(false);
+                  } catch (error) {
+                    console.error("Error saving address:", error);
+                    setAddressError("Failed to save address");
+                  }
+                }}
+                style={styles.saveButton}
+              />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
-      
+
       {/* Payment Method Modal */}
       <Modal
         visible={showPaymentModal}
-        transparent
         animationType="slide"
+        transparent={true}
         onRequestClose={() => setShowPaymentModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={{ flex: 1, justifyContent: 'flex-end' }}
-          >
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Payment Method</Text>
-                <TouchableOpacity 
-                  onPress={() => {
-                    setShowPaymentModal(false);
-                    setFocusedInput(null);
-                    Keyboard.dismiss();
-                  }}
-                  style={styles.closeButton}
-                >
-                  <Icon name="close" size={24} color="#000" />
-                </TouchableOpacity>
-              </View>
-              
-              <ScrollView
-                ref={scrollViewRef}
-                style={styles.formScrollContainer}
-                keyboardShouldPersistTaps="handled"
-              >
-                <View style={styles.formContainer}>
-                  <View style={styles.paymentSecurityInfo}>
-                    <Icon name="shield-check" size={20} color="#4CAF50" />
-                    <Text style={styles.paymentSecurityText}>
-                      Your payment details are stored securely for checkout convenience.
-                    </Text>
-                  </View>
-                  
-                  <Text style={styles.inputLabel}>Card Number</Text>
-                  <View style={[
-                    styles.cardInputContainer,
-                    cardErrors.cardNumber ? styles.inputError : {}
-                  ]}>
-                    <Icon name="credit-card-outline" size={22} color="#666" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.cardInput}
-                      value={cardNumber}
-                      onChangeText={handleCardNumberChange}
-                      placeholder="1234 5678 9012 3456"
-                      keyboardType="number-pad"
-                      maxLength={19} // 16 digits + 3 spaces
-                      onFocus={() => setFocusedInput('cardNumber')}
-                      onBlur={() => setFocusedInput(null)}
-                    />
-                  </View>
-                  {cardErrors.cardNumber && <Text style={styles.errorText}>{cardErrors.cardNumber}</Text>}
-                  
-                  <Text style={styles.inputLabel}>Cardholder Name</Text>
-                  <View style={[
-                    styles.cardInputContainer,
-                    cardErrors.cardHolderName ? styles.inputError : {}
-                  ]}>
-                    <Icon name="account-outline" size={22} color="#666" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.cardInput}
-                      value={cardHolderName}
-                      onChangeText={(text) => {
-                        setCardHolderName(text);
-                        if (cardErrors.cardHolderName) setCardErrors({...cardErrors, cardHolderName: undefined});
-                      }}
-                      placeholder="Full name on card"
-                      onFocus={() => setFocusedInput('cardHolderName')}
-                      onBlur={() => setFocusedInput(null)}
-                    />
-                  </View>
-                  {cardErrors.cardHolderName && <Text style={styles.errorText}>{cardErrors.cardHolderName}</Text>}
-                  
-                  <View style={styles.expiryContainer}>
-                    <View style={styles.expiryField}>
-                      <Text style={styles.inputLabel}>Month (MM)</Text>
-                      <View style={[
-                        styles.cardInputContainer,
-                        cardErrors.expiryMonth ? styles.inputError : {}
-                      ]}>
-                        <Icon name="calendar-month" size={22} color="#666" style={styles.inputIcon} />
-                        <TextInput
-                          style={styles.cardInput}
-                          value={expiryMonth}
-                          onChangeText={(text) => {
-                            setExpiryMonth(text.replace(/\D/g, '').substring(0, 2));
-                            if (cardErrors.expiryMonth) setCardErrors({...cardErrors, expiryMonth: undefined});
-                          }}
-                          placeholder="MM"
-                          keyboardType="number-pad"
-                          maxLength={2}
-                          onFocus={() => setFocusedInput('expiryMonth')}
-                          onBlur={() => setFocusedInput(null)}
-                        />
-                      </View>
-                      {cardErrors.expiryMonth && <Text style={styles.errorText}>{cardErrors.expiryMonth}</Text>}
-                    </View>
-                    
-                    <View style={styles.expiryField}>
-                      <Text style={styles.inputLabel}>Year (YYYY)</Text>
-                      <View style={[
-                        styles.cardInputContainer,
-                        cardErrors.expiryYear ? styles.inputError : {}
-                      ]}>
-                        <Icon name="calendar" size={22} color="#666" style={styles.inputIcon} />
-                        <TextInput
-                          style={styles.cardInput}
-                          value={expiryYear}
-                          onChangeText={(text) => {
-                            setExpiryYear(text.replace(/\D/g, '').substring(0, 4));
-                            if (cardErrors.expiryYear) setCardErrors({...cardErrors, expiryYear: undefined});
-                          }}
-                          placeholder="YYYY"
-                          keyboardType="number-pad"
-                          maxLength={4}
-                          onFocus={() => setFocusedInput('expiryYear')}
-                          onBlur={() => setFocusedInput(null)}
-                        />
-                      </View>
-                      {cardErrors.expiryYear && <Text style={styles.errorText}>{cardErrors.expiryYear}</Text>}
-                    </View>
-                    
-                    <View style={[styles.expiryField, { width: '30%' }]}>
-                      <Text style={styles.inputLabel}>CVV</Text>
-                      <View style={[
-                        styles.cardInputContainer,
-                        cardErrors.cvv ? styles.inputError : {}
-                      ]}>
-                        <Icon name="lock-outline" size={22} color="#666" style={styles.inputIcon} />
-                        <TextInput
-                          style={styles.cardInput}
-                          value={cvv}
-                          onChangeText={(text) => {
-                            setCvv(text.replace(/\D/g, '').substring(0, 3));
-                            if (cardErrors.cvv) setCardErrors({...cardErrors, cvv: undefined});
-                          }}
-                          placeholder="123"
-                          keyboardType="number-pad"
-                          maxLength={3}
-                          secureTextEntry
-                          onFocus={() => setFocusedInput('cvv')}
-                          onBlur={() => setFocusedInput(null)}
-                        />
-                      </View>
-                      {cardErrors.cvv && <Text style={styles.errorText}>{cardErrors.cvv}</Text>}
-                    </View>
-                  </View>
-                  
-                  <View style={styles.buttonContainer}>
-                    <Button
-                      title="Save Payment Method"
-                      onPress={savePaymentMethod}
-                      style={hasPaymentMethod ? styles.primaryButton : styles.saveButton}
-                    />
-                    
-                    {hasPaymentMethod && (
-                      <Button
-                        title="Clear Payment Method"
-                        onPress={clearPaymentMethod}
-                        style={styles.clearButton}
-                      />
-                    )}
-                  </View>
-                </View>
-              </ScrollView>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Payment Method</Text>
+              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+                <Icon name="close" size={24} color="#000" />
+              </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+
+            <ScrollView>
+              <TextInput
+                style={styles.input}
+                placeholder="Card Number"
+                value={cardNumber}
+                onChangeText={handleCardNumberChange}
+                keyboardType="numeric"
+                maxLength={19}
+                onFocus={() => setFocusedInput("cardNumber")}
+                onBlur={() => setFocusedInput(null)}
+              />
+              {cardErrors.cardNumber && (
+                <Text style={styles.errorText}>{cardErrors.cardNumber}</Text>
+              )}
+
+              <TextInput
+                style={styles.input}
+                placeholder="Cardholder Name"
+                value={cardHolderName}
+                onChangeText={(text) => {
+                  setCardHolderName(text);
+                  if (cardErrors.cardHolderName) {
+                    setCardErrors({ ...cardErrors, cardHolderName: undefined });
+                  }
+                }}
+                onFocus={() => setFocusedInput("cardHolderName")}
+                onBlur={() => setFocusedInput(null)}
+              />
+              {cardErrors.cardHolderName && (
+                <Text style={styles.errorText}>
+                  {cardErrors.cardHolderName}
+                </Text>
+              )}
+
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="MM"
+                    value={expiryMonth}
+                    onChangeText={(text) => {
+                      const month = text.replace(/\D/g, "");
+                      if (month.length <= 2) {
+                        setExpiryMonth(month);
+                        if (cardErrors.expiryMonth) {
+                          setCardErrors({
+                            ...cardErrors,
+                            expiryMonth: undefined,
+                          });
+                        }
+                      }
+                    }}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    onFocus={() => setFocusedInput("expiryMonth")}
+                    onBlur={() => setFocusedInput(null)}
+                  />
+                  {cardErrors.expiryMonth && (
+                    <Text style={styles.errorText}>
+                      {cardErrors.expiryMonth}
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.halfInput}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="YY"
+                    value={expiryYear}
+                    onChangeText={(text) => {
+                      const year = text.replace(/\D/g, "");
+                      if (year.length <= 2) {
+                        setExpiryYear(year);
+                        if (cardErrors.expiryYear) {
+                          setCardErrors({
+                            ...cardErrors,
+                            expiryYear: undefined,
+                          });
+                        }
+                      }
+                    }}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    onFocus={() => setFocusedInput("expiryYear")}
+                    onBlur={() => setFocusedInput(null)}
+                  />
+                  {cardErrors.expiryYear && (
+                    <Text style={styles.errorText}>
+                      {cardErrors.expiryYear}
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.halfInput}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="CVV"
+                    value={cvv}
+                    onChangeText={(text) => {
+                      const cvvNum = text.replace(/\D/g, "");
+                      if (cvvNum.length <= 3) {
+                        setCvv(cvvNum);
+                        if (cardErrors.cvv) {
+                          setCardErrors({ ...cardErrors, cvv: undefined });
+                        }
+                      }
+                    }}
+                    keyboardType="numeric"
+                    maxLength={3}
+                    secureTextEntry
+                    onFocus={() => setFocusedInput("cvv")}
+                    onBlur={() => setFocusedInput(null)}
+                  />
+                  {cardErrors.cvv && (
+                    <Text style={styles.errorText}>{cardErrors.cvv}</Text>
+                  )}
+                </View>
+              </View>
+
+              <Button
+                title="Save Card"
+                onPress={async () => {
+                  // Validate card details
+                  const errors: typeof cardErrors = {};
+
+                  if (!cardNumber.replace(/\s/g, "").match(/^\d{16}$/)) {
+                    errors.cardNumber =
+                      "Please enter a valid 16-digit card number";
+                  }
+
+                  if (!cardHolderName.trim()) {
+                    errors.cardHolderName = "Please enter the cardholder name";
+                  }
+
+                  const month = parseInt(expiryMonth);
+                  const year = parseInt(expiryYear);
+                  const currentYear = new Date().getFullYear() % 100;
+                  const currentMonth = new Date().getMonth() + 1;
+
+                  if (!month || month < 1 || month > 12) {
+                    errors.expiryMonth = "Invalid month";
+                  }
+
+                  if (
+                    !year ||
+                    year < currentYear ||
+                    (year === currentYear && month < currentMonth)
+                  ) {
+                    errors.expiryYear = "Card has expired";
+                  }
+
+                  if (!cvv.match(/^\d{3}$/)) {
+                    errors.cvv = "Please enter a valid 3-digit CVV";
+                  }
+
+                  if (Object.keys(errors).length > 0) {
+                    setCardErrors(errors);
+                    return;
+                  }
+
+                  try {
+                    // In a real app, we would validate the card with a payment processor
+                    // For this demo, we'll just save the status
+                    await storeValue("hasPaymentMethod", "true");
+                    setHasPaymentMethod(true);
+                    setShowPaymentModal(false);
+                  } catch (error) {
+                    console.error("Error saving payment method:", error);
+                    setCardErrors({
+                      ...cardErrors,
+                      cardNumber: "Failed to save payment method",
+                    });
+                  }
+                }}
+                style={styles.saveButton}
+              />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -857,97 +631,39 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
+    fontWeight: "bold",
   },
-  closeButton: {
-    padding: 4,
-  },
-  formScrollContainer: {
-    maxHeight: 500,
-  },
-  formContainer: {
-    paddingVertical: 16,
-    paddingBottom: 40,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#000",
-    marginBottom: 6,
-    marginTop: 12,
+  addressInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    minHeight: 100,
+    textAlignVertical: "top",
   },
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
     padding: 12,
-    fontSize: 16,
-    backgroundColor: "#f9f9f9",
+    marginTop: 16,
   },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: "top",
-  },
-  saveButton: {
-    marginTop: 24,
-    backgroundColor: "#000",
-  },
-  primaryButton: {
-    backgroundColor: "#000",
-  },
-  clearButton: {
-    backgroundColor: "#FF3B30",
-  },
-  buttonContainer: {
-    marginTop: 24,
-    flexDirection: "column",
-    gap: 12,
-  },
-  cardInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    backgroundColor: "#f9f9f9",
-  },
-  inputIcon: {
-    marginLeft: 12,
-  },
-  cardInput: {
-    flex: 1,
-    padding: 12,
-    fontSize: 16,
-  },
-  expiryContainer: {
+  row: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  expiryField: {
-    width: "32%",
-  },
-  paymentSecurityInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E8F5E9",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  paymentSecurityText: {
-    fontSize: 12,
-    color: "#333",
-    marginLeft: 8,
+  halfInput: {
     flex: 1,
-  },
-  inputError: {
-    borderColor: "#FF3B30",
+    marginRight: 8,
   },
   errorText: {
     color: "#FF3B30",
     fontSize: 12,
     marginTop: 4,
+  },
+  saveButton: {
+    marginTop: 24,
   },
 });
 

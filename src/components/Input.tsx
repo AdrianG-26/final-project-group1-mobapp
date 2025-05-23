@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import { validateEmail } from "../utils/validation";
 
 interface InputProps extends TextInputProps {
   label: string;
@@ -18,6 +19,7 @@ interface InputProps extends TextInputProps {
   labelStyle?: TextStyle;
   inputStyle?: TextStyle;
   errorStyle?: TextStyle;
+  validateOnChange?: boolean;
 }
 
 const Input: React.FC<InputProps> = ({
@@ -29,9 +31,28 @@ const Input: React.FC<InputProps> = ({
   labelStyle,
   inputStyle,
   errorStyle,
+  validateOnChange = false,
+  keyboardType,
+  value,
+  onChangeText,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const [localError, setLocalError] = useState<string | undefined>(error);
+
+  useEffect(() => {
+    setLocalError(error);
+  }, [error]);
+
+  const handleChangeText = (text: string) => {
+    if (validateOnChange && keyboardType === "email-address" && text) {
+      const isValid = validateEmail(text);
+      setLocalError(isValid ? undefined : "Please enter a valid email address");
+    } else {
+      setLocalError(undefined);
+    }
+    onChangeText?.(text);
+  };
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -40,7 +61,7 @@ const Input: React.FC<InputProps> = ({
         style={[
           styles.inputContainer,
           isFocused && styles.focusedInput,
-          error && styles.errorInput,
+          (localError || error) && styles.errorInput,
         ]}
       >
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
@@ -49,11 +70,16 @@ const Input: React.FC<InputProps> = ({
           placeholderTextColor="#999"
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          value={value}
+          onChangeText={handleChangeText}
+          keyboardType={keyboardType}
           {...props}
         />
         {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
       </View>
-      {error && <Text style={[styles.error, errorStyle]}>{error}</Text>}
+      {(localError || error) && (
+        <Text style={[styles.error, errorStyle]}>{localError || error}</Text>
+      )}
     </View>
   );
 };

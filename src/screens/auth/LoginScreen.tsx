@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -16,11 +16,11 @@ import Button from "../../components/Button";
 import Input from "../../components/Input";
 import { useAuth } from "../../context/AuthContext";
 import { AuthStackParamList, RootStackParamList } from "../../types/index";
-import { getUsers } from '../../utils/storage';
+import { getUsers } from "../../utils/storage";
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
   AuthStackParamList & RootStackParamList,
-  'Login'
+  "Login"
 >;
 
 const LoginScreen = () => {
@@ -35,7 +35,7 @@ const LoginScreen = () => {
     // Check all users on component mount
     const checkUsers = async () => {
       const users = await getUsers();
-      console.log('All registered users:', JSON.stringify(users, null, 2));
+      console.log("All registered users:", JSON.stringify(users, null, 2));
     };
     checkUsers();
   }, []);
@@ -92,6 +92,7 @@ const LoginScreen = () => {
             placeholder="Enter your email"
             keyboardType="email-address"
             autoCapitalize="none"
+            validateOnChange={true}
           />
 
           <Input

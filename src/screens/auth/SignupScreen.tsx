@@ -16,7 +16,11 @@ import { v4 as uuidv4 } from "uuid";
 import Button from "../../components/Button";
 import Input from "../../components/Input";
 import { useAuth } from "../../context/AuthContext";
-import { AuthStackParamList, RootStackParamList, User } from "../../types/index";
+import {
+  AuthStackParamList,
+  RootStackParamList,
+  User,
+} from "../../types/index";
 import { getUsers, saveUser } from "../../utils/storage";
 
 type SignupScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList>;
@@ -235,6 +239,7 @@ const SignupScreen = () => {
             keyboardType="email-address"
             autoCapitalize="none"
             error={emailError}
+            validateOnChange={true}
           />
 
           <Input
